@@ -3,11 +3,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Tournament, TournamentSchema } from './schemas/tournament.schema';
 
 /**
- * TournamentsModule — metadata and persistence for tournaments.
+ * TournamentsModule — persistence for tournaments.
  *
- * The internal structure (participants, brackets, matches, results, etc.) is
- * not yet modeled — it will be defined once the team specifies the tournament
- * format(s). This module currently registers the schema only.
+ * Registers the Tournament schema (which embeds teams, matches, groups,
+ * standings, Swiss stage and knockout bracket — see
+ * ./schemas/tournament.schema.ts for the full design rationale).
+ * Controllers/services/DTOs for CRUD and fixture generation are added in a
+ * follow-up once the data model above is validated.
  */
 @Module({
   imports: [

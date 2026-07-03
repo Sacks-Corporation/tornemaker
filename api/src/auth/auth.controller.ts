@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import type { UserDocument } from '../users/schemas/user.schema';
 import { AuthService } from './auth.service';
 import { GoogleAuthDto } from './dto/google-auth.dto';
@@ -19,7 +26,9 @@ export class AuthController {
    * Response: { accessToken: string }
    */
   @Post('google')
-  loginWithGoogle(@Body() dto: GoogleAuthDto): Promise<{ accessToken: string }> {
+  loginWithGoogle(
+    @Body() dto: GoogleAuthDto,
+  ): Promise<{ accessToken: string }> {
     return this.authService.loginWithGoogle(dto.idToken);
   }
 
