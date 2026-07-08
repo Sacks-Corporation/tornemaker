@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router-dom'
 import HomePage from '../components/pages/HomePage'
 import LoginPage from '../components/pages/LoginPage'
 import RegisterPage from '../components/pages/RegisterPage'
+import NewTournamentPage from '../components/pages/NewTournamentPage'
+import TournamentPage from '../components/pages/TournamentPage'
 import ProtectedRoute from './ProtectedRoute'
 
 const router = createBrowserRouter([
@@ -18,12 +20,18 @@ const router = createBrowserRouter([
     element: <RegisterPage />,
   },
   {
-    // Ruta de ejemplo protegida: reutilizá <ProtectedRoute> envolviendo
-    // cualquier página que deba requerir sesión iniciada.
-    path: '/perfil',
+    path: '/new',
     element: (
       <ProtectedRoute>
-        <HomePage />
+        <NewTournamentPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/tournament/:id',
+    element: (
+      <ProtectedRoute>
+        <TournamentPage />
       </ProtectedRoute>
     ),
   },

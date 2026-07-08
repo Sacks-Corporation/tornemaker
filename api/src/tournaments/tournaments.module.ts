@@ -1,15 +1,20 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { DrawService } from './draw/draw.service';
 import { Tournament, TournamentSchema } from './schemas/tournament.schema';
+import { TournamentsController } from './tournaments.controller';
+import { TournamentsService } from './tournaments.service';
 
 /**
- * TournamentsModule — persistence for tournaments.
+ * TournamentsModule — persistence + fixture generation for tournaments.
  *
  * Registers the Tournament schema (which embeds teams, matches, groups,
  * standings, Swiss stage and knockout bracket — see
  * ./schemas/tournament.schema.ts for the full design rationale).
- * Controllers/services/DTOs for CRUD and fixture generation are added in a
- * follow-up once the data model above is validated.
+ *
+ * `POST /tournaments` both persists the tournament AND generates its
+ * fixture/draw in the same request; the draw logic lives under ./draw and
+ * is exposed to the service via `DrawService`.
  */
 @Module({
   imports: [
@@ -17,5 +22,7 @@ import { Tournament, TournamentSchema } from './schemas/tournament.schema';
       { name: Tournament.name, schema: TournamentSchema },
     ]),
   ],
+  controllers: [TournamentsController],
+  providers: [TournamentsService, DrawService],
 })
 export class TournamentsModule {}

@@ -8,9 +8,6 @@ const common = {
     text: 'Tornemaker — La plataforma para organizar y gestionar torneos.',
     rights: 'Sacks Corporation. Todos los derechos reservados.',
   },
-  select: {
-    placeholder: 'Seleccioná una opción',
-  },
   datePicker: {
     placeholder: 'Seleccioná una fecha',
     previousMonth: 'Mes anterior',
@@ -31,13 +28,8 @@ const common = {
     ],
     weekdaysShort: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
   },
-  demo: {
-    title: 'Componentes comunes',
-    buttonsTitle: 'Botones',
-    selectTitle: 'Select',
-    datePickerTitle: 'Selector de fecha',
-    radioTitle: 'Opciones (Radio)',
-    selectedLabel: 'Seleccionado',
+  modal: {
+    close: 'Cerrar',
   },
 } as const
 

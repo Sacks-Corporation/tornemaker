@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { GameConsole } from './common/console.enum';
+import { MatchMode } from './common/match-mode.enum';
 import { TournamentFormat } from './common/tournament-format.enum';
 import { Team, TeamSchema } from './common/team.schema';
 import { KnockoutStage, KnockoutStageSchema } from './knockout-stage.schema';
@@ -54,14 +55,20 @@ export enum TournamentStatus {
  * their qualifiers are known (group stage -> elimination, Swiss ->
  * elimination), reusing the very same Bracket structure as format 1.
  *
- * Consoles: `allowedConsoles` declares which console(s) this tournament is
- * played on (it can be more than one, e.g. mixing Play 4 and Play 5).
- * Every individual match leg still carries its own mandatory `console` on
- * `MatchResult` — this is intentionally NOT redundant: `allowedConsoles` is
- * the tournament-level configuration/validation set, while the per-leg
- * value is the actual historical record of where that specific leg was
- * played (the service layer should validate that a leg's console belongs
- * to `allowedConsoles`, but the schema does not hardcode any single value).
+ * Consoles: `consoleUnits` vs `allowedConsoles` — two different things:
+ *   - `consoleUnits` is the physical inventory actually used to run this
+ *     tournament: one entry per physical console unit, 1 to 20 of them,
+ *     DUPLICATES ALLOWED (e.g. [PLAY_5, PLAY_5, PLAY_4] means two Play 5
+ *     units and one Play 4 unit are available). This is what the organizer
+ *     submits at creation time.
+ *   - `allowedConsoles` is derived from `consoleUnits` by deduplicating to
+ *     just the distinct console *types* (e.g. [PLAY_5, PLAY_4] for the
+ *     example above) and is kept as the tournament-level validation set:
+ *     every individual match leg still carries its own mandatory `console`
+ *     on `MatchResult` — this is intentionally NOT redundant, the service
+ *     layer should validate that a leg's console belongs to
+ *     `allowedConsoles`, while `consoleUnits` is only needed to know how
+ *     many physical units of each type exist (e.g. for scheduling).
  */
 @Schema({ timestamps: true })
 export class Tournament {
@@ -81,7 +88,20 @@ export class Tournament {
   @Prop({ type: String, enum: TournamentFormat, required: true })
   format: TournamentFormat;
 
-  /** Console(s) this tournament may be played on. At least one required. */
+  /** How many real players share each team (1v1, 2v2, 3v3). */
+  @Prop({ type: String, enum: MatchMode, required: true })
+  matchMode: MatchMode;
+
+  /**
+   * Physical console units available for this tournament, exactly as
+   * submitted by the organizer (1-20 entries, duplicates allowed — see the
+   * class doc above for the full `consoleUnits` vs `allowedConsoles`
+   * distinction).
+   */
+  @Prop({ type: [String], enum: GameConsole, required: true })
+  consoleUnits: GameConsole[];
+
+  /** Distinct console types derived from `consoleUnits` (deduplicated). */
   @Prop({ type: [String], enum: GameConsole, required: true })
   allowedConsoles: GameConsole[];
 

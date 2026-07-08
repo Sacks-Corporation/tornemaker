@@ -1,41 +1,22 @@
-import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import HomePage from './HomePage'
-import type { SelectOption, RadioOption } from '../../../types/common.types'
-
-const FORMAT_OPTIONS: SelectOption[] = [
-  { value: 'single-elimination', label: 'Eliminación simple' },
-  { value: 'double-elimination', label: 'Eliminación doble' },
-  { value: 'round-robin', label: 'Todos contra todos' },
-  { value: 'swiss', label: 'Sistema suizo' },
-]
-
-const VISIBILITY_OPTIONS: RadioOption[] = [
-  { value: 'public', label: 'Público' },
-  { value: 'private', label: 'Privado' },
-]
+import { useAuth } from '../../../hooks/auth/AuthContext'
 
 function HomePageContainer() {
-  const title = 'home.title'
-  const subtitle = 'home.subtitle'
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuth()
 
-  const [format, setFormat] = useState<string | null>(null)
-  const [date, setDate] = useState<Date | null>(null)
-  const [visibility, setVisibility] = useState<string | null>('public')
+  const ctaLabel = isAuthenticated
+    ? t('home.cta.createTournament')
+    : t('home.cta.loginToCreate')
 
-  return (
-    <HomePage
-      title={title}
-      subtitle={subtitle}
-      formatOptions={FORMAT_OPTIONS}
-      formatValue={format}
-      onFormatChange={setFormat}
-      date={date}
-      onDateChange={setDate}
-      visibilityOptions={VISIBILITY_OPTIONS}
-      visibilityValue={visibility}
-      onVisibilityChange={setVisibility}
-    />
-  )
+  const handleCtaClick = () => {
+    navigate(isAuthenticated ? '/new' : '/login')
+  }
+
+  return <HomePage ctaLabel={ctaLabel} onCtaClick={handleCtaClick} />
 }
 
 export default HomePageContainer

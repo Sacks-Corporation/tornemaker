@@ -33,9 +33,16 @@ export class Team {
   @Prop({ trim: true })
   logoUrl?: string;
 
-  /** Optional display name of the real person playing this team. */
-  @Prop({ trim: true })
-  playerName?: string;
+  /**
+   * Display names of the real person/people playing this team, in team-order
+   * (length matches the tournament's `matchMode`: 1 for 1v1, 2 for 2v2, 3 for
+   * 3v3). An EMPTY array means this team is not linked to any player and is
+   * controlled by the CPU/AI — only allowed for formats where AI teams are
+   * permitted (see tournament.schema.ts / format validation at the service
+   * layer; League and Swiss+elimination require every team to be assigned).
+   */
+  @Prop({ type: [String], default: [] })
+  playerNames: string[];
 
   /**
    * Optional link to a registered platform user, in case the player also
