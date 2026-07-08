@@ -5,6 +5,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // All routes are served under /api (e.g. /api/auth/google), matching the
+  // frontend's configured API base URL.
+  app.setGlobalPrefix('api');
+
+  // Allow the frontend origin to call this API with credentials/headers.
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  });
+
   // Global validation pipe — uses class-validator + class-transformer to
   // validate and transform incoming request bodies.
   app.useGlobalPipes(
@@ -17,4 +26,4 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

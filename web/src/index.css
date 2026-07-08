@@ -1,1 +1,65 @@
 @import "tailwindcss";
+
+/* Dark mode con estrategia de clase: se activa agregando `.dark` en <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Crema (color principal / fondos) */
+  --color-cream-50: #fffdf8;
+  --color-cream-100: #fdf6e3;
+  --color-cream-200: #faf3e0;
+  --color-cream-300: #f5e9c8;
+  --color-cream-900: #2a2013;
+  --color-cream-950: #1c150c;
+
+  /* Naranja (color secundario / acentos, bordes, header, footer) */
+  --color-orange-50: #fff4ec;
+  --color-orange-100: #ffe4cc;
+  --color-orange-200: #fecb96;
+  --color-orange-300: #fdab5f;
+  --color-orange-400: #f97316;
+  --color-orange-500: #e8590c;
+  --color-orange-600: #c94a0a;
+  --color-orange-700: #a53c0b;
+  --color-orange-800: #7a2d0b;
+  --color-orange-900: #4a1c08;
+
+  /* Tokens semánticos: light mode (valores por defecto) */
+  --color-background: var(--color-cream-100);
+  --color-surface: var(--color-cream-50);
+  --color-primary: var(--color-orange-500);
+  --color-primary-hover: var(--color-orange-600);
+  --color-secondary: var(--color-orange-400);
+  --color-border: var(--color-orange-500);
+  --color-text: #2a2013;
+  --color-text-muted: #6b5b3f;
+  --color-header: var(--color-orange-500);
+  --color-footer: var(--color-orange-500);
+  --color-on-primary: #fff8ee;
+
+  --font-sans:
+    'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+}
+
+/* Tokens semánticos: dark mode */
+.dark {
+  --color-background: var(--color-cream-950);
+  --color-surface: var(--color-cream-900);
+  --color-primary: var(--color-orange-400);
+  --color-primary-hover: var(--color-orange-300);
+  --color-secondary: var(--color-orange-500);
+  --color-border: var(--color-orange-500);
+  --color-text: var(--color-cream-100);
+  --color-text-muted: #d8c9a3;
+  --color-header: var(--color-orange-800);
+  --color-footer: var(--color-orange-800);
+  --color-on-primary: #1c150c;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
