@@ -6,7 +6,7 @@ import LoginPage from './LoginPage'
 import type { LoginFormErrors } from './LoginPage'
 import { useAuth } from '../../../hooks/auth/AuthContext'
 import { useGoogleLoginMutation, useLoginMutation } from '../../../hooks/auth/useAuthMutations'
-import { getAuthErrorKey } from '../../../utils/auth.errors'
+import { getAuthErrorKey, isUserNotRegisteredError } from '../../../utils/auth.errors'
 import { isRequired, isValidEmail } from '../../../utils/auth.validation'
 
 function LoginPageContainer() {
@@ -19,6 +19,7 @@ function LoginPageContainer() {
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<LoginFormErrors>({})
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showGoogleRegisterCta, setShowGoogleRegisterCta] = useState(false)
 
   const loginMutation = useLoginMutation()
   const googleLoginMutation = useGoogleLoginMutation()
@@ -47,6 +48,7 @@ function LoginPageContainer() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setServerError(null)
+    setShowGoogleRegisterCta(false)
 
     const nextErrors = validate()
     setErrors(nextErrors)
@@ -68,6 +70,7 @@ function LoginPageContainer() {
 
   const handleGoogleCredential = (idToken: string) => {
     setServerError(null)
+    setShowGoogleRegisterCta(false)
     googleLoginMutation.mutate(
       { idToken },
       {
@@ -77,6 +80,7 @@ function LoginPageContainer() {
         },
         onError: (error) => {
           setServerError(t(getAuthErrorKey(error)))
+          setShowGoogleRegisterCta(isUserNotRegisteredError(error))
         },
       },
     )
@@ -90,6 +94,7 @@ function LoginPageContainer() {
       password={password}
       errors={errors}
       serverError={serverError}
+      showGoogleRegisterCta={showGoogleRegisterCta}
       isSubmitting={isSubmitting}
       onEmailChange={setEmail}
       onPasswordChange={setPassword}

@@ -4,6 +4,7 @@ import type {
   MatchResultPayload,
   Tournament,
   TournamentDetail,
+  TournamentSummary,
   UpcomingMatch,
 } from '../types/tournament.types'
 
@@ -12,6 +13,11 @@ import type {
 
 export const createTournament = (payload: CreateTournamentPayload): Promise<Tournament> =>
   apiPost<Tournament, CreateTournamentPayload>('/tournaments', payload)
+
+// Listado liviano de torneos guardados del usuario (userId sale del JWT, no
+// se manda por body/query). Sin fixtures/matches/standings.
+export const getTournaments = (): Promise<TournamentSummary[]> =>
+  apiGet<TournamentSummary[]>('/tournaments')
 
 // Torneo completo (fases, tablas, brackets) para la pantalla de simulación.
 export const getTournament = (tournamentId: string): Promise<TournamentDetail> =>

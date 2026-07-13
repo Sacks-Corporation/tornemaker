@@ -24,7 +24,9 @@ import {
 } from './progression/playable-matches.util';
 import {
   serializeTournament,
+  serializeTournamentSummary,
   SerializedTournament,
+  SerializedTournamentSummary,
 } from './progression/serialize';
 import { TournamentFormat } from './schemas/common/tournament-format.enum';
 import { TournamentState } from './schemas/common/tournament-state.enum';
@@ -89,6 +91,22 @@ export class TournamentsService {
     });
 
     return created.save();
+  }
+
+  /**
+   * GET /tournaments — lightweight listing of every tournament owned by the
+   * authenticated user, for a dashboard/cards screen. Only projects the
+   * fields `serializeTournamentSummary` needs (no fixtures/matches/
+   * standings), sorted by most recently created first — matches the
+   * `{ ownerId: 1, createdAt: -1 }` index on the schema.
+   */
+  async findAllForOwner(ownerId: string): Promise<SerializedTournamentSummary[]> {
+    const tournaments = await this.tournamentModel
+      .find({ ownerId: new Types.ObjectId(ownerId) })
+      .select('name format status teams createdAt updatedAt')
+      .sort({ createdAt: -1 })
+      .exec();
+    return tournaments.map(serializeTournamentSummary);
   }
 
   /**

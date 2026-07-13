@@ -18,9 +18,16 @@ export interface AuthContextValue {
   isInitializing: boolean
   login: (auth: AuthResponse) => void
   logout: () => void
+  sessionExpiredMessage: string | null
+  dismissSessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+// Clave i18n resuelta por el consumidor (ver components/common/SessionExpiredSnackbar).
+// Se guarda la clave y no el texto ya traducido para que este archivo, al ser parte
+// de la capa de hooks/contexto, no dependa directamente de i18n.
+const SESSION_EXPIRED_MESSAGE_KEY = 'auth.session.expiredMessage'
 
 // Provider central del estado de sesión. Guarda el accessToken y el user en
 // localStorage, revalida contra /auth/me (vía useMe + TanStack Query) cuando
@@ -29,6 +36,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(() => getStoredUser())
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null)
   const hasToken = getStoredAccessToken() !== null
 
   const meQuery = useMe()
@@ -63,11 +71,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleSessionExpired = () => {
       setUser(null)
       queryClient.removeQueries({ queryKey: AUTH_ME_QUERY_KEY })
+      setSessionExpiredMessage(SESSION_EXPIRED_MESSAGE_KEY)
     }
 
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired)
   }, [queryClient])
+
+  const dismissSessionExpired = useCallback(() => setSessionExpiredMessage(null), [])
 
   // Solo mostramos un estado de "inicializando" cuando hay token pero todavía
   // no sabemos si es válido (primera carga de /auth/me sin user cacheado).
@@ -80,8 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isInitializing,
       login,
       logout,
+      sessionExpiredMessage,
+      dismissSessionExpired,
     }),
-    [user, isInitializing, login, logout],
+    [user, isInitializing, login, logout, sessionExpiredMessage, dismissSessionExpired],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

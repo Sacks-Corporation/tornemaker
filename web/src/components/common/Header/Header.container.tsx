@@ -15,7 +15,6 @@ function HeaderContainer() {
 
   return (
     <Header
-      siteName={t('common.siteName')}
       theme={theme}
       toggleThemeLabel={toggleThemeLabel}
       onToggleTheme={toggleTheme}

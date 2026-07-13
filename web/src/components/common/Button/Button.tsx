@@ -19,6 +19,8 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     'bg-transparent text-primary border border-primary hover:bg-primary/10 active:bg-primary/20',
   text: 'bg-transparent text-primary border border-transparent hover:bg-primary/10 active:bg-primary/20',
+  onHeader:
+    'bg-transparent text-on-header border border-on-header/40 hover:bg-on-header/10 active:bg-on-header/20',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {

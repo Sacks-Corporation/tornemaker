@@ -64,10 +64,41 @@ export class AuthService {
   }
 
   /**
-   * Verifies a Google ID token, maps/creates/links the user in our
-   * database, and returns our own signed JWT.
+   * LOGIN with Google. Verifies the Google ID token and maps it against our
+   * database (by googleId, then by email — linking Google to an existing
+   * local account when found), but NEVER creates a user here: if this
+   * Google identity has no account yet, rejects with
+   * `UnauthorizedException('USER_NOT_REGISTERED')` so the frontend can
+   * route the user to the register flow instead. Account creation lives
+   * exclusively in `registerWithGoogle` below.
    */
   async loginWithGoogle(idToken: string): Promise<AuthResult> {
+    const googleUser = await this.verifyGoogleToken(idToken);
+
+    const user = await this.usersService.findByGoogleIdentity(googleUser);
+    if (!user) {
+      throw new UnauthorizedException('USER_NOT_REGISTERED');
+    }
+
+    return { accessToken: this.signJwt(user), user: toUserResponse(user) };
+  }
+
+  /**
+   * REGISTER with Google. Verifies the Google ID token and creates a new
+   * user for this Google identity if none exists yet (by googleId or by
+   * email, linking Google to an existing local account when found — same
+   * matching rules as `loginWithGoogle`).
+   *
+   * Behavior when the account already exists: this endpoint is idempotent
+   * rather than erroring — it simply signs in the existing user and returns
+   * a fresh JWT, the same way Google's own "Sign in with Google" button
+   * transparently handles both first-time and returning users. This differs
+   * from local registration (`register`, which throws
+   * `EMAIL_ALREADY_REGISTERED`) because there is no password/credential
+   * conflict to protect against with Google — re-authenticating an existing
+   * Google-linked account is always safe.
+   */
+  async registerWithGoogle(idToken: string): Promise<AuthResult> {
     const googleUser = await this.verifyGoogleToken(idToken);
 
     const user = await this.usersService.findOrCreateFromGoogle(googleUser);

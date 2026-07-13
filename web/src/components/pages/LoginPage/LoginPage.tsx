@@ -6,6 +6,7 @@ import Footer from '../../common/Footer'
 import Button from '../../common/Button'
 import TextInput from '../../common/TextInput'
 import GoogleButton from '../../common/GoogleButton'
+import Logo from '../../common/Logo'
 
 export interface LoginFormErrors {
   email?: string
@@ -17,6 +18,7 @@ export interface LoginPageProps {
   password: string
   errors: LoginFormErrors
   serverError: string | null
+  showGoogleRegisterCta: boolean
   isSubmitting: boolean
   onEmailChange: (value: string) => void
   onPasswordChange: (value: string) => void
@@ -29,6 +31,7 @@ function LoginPage({
   password,
   errors,
   serverError,
+  showGoogleRegisterCta,
   isSubmitting,
   onEmailChange,
   onPasswordChange,
@@ -44,6 +47,7 @@ function LoginPage({
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
           <div className="mb-6 text-center">
+            <Logo variant="lockup" className="mx-auto mb-4 h-12" />
             <h1 className="text-2xl font-bold text-text sm:text-3xl">{t('auth.login.title')}</h1>
             <p className="mt-2 text-sm text-text-muted sm:text-base">
               {t('auth.login.subtitle')}
@@ -55,7 +59,15 @@ function LoginPage({
               role="alert"
               className="mb-4 rounded-lg border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-700"
             >
-              {serverError}
+              <p>{serverError}</p>
+              {showGoogleRegisterCta && (
+                <Link
+                  to="/register"
+                  className="mt-1 inline-block font-medium text-red-700 underline hover:text-red-800"
+                >
+                  {t('auth.errors.userNotRegisteredCta')}
+                </Link>
+              )}
             </div>
           )}
 

@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import type { ThemeMode } from '../../../types/common.types'
 import Button from '../Button'
+import Logo from '../Logo'
 
 export interface HeaderProps {
-  siteName: string
   theme: ThemeMode
   toggleThemeLabel: string
   onToggleTheme: () => void
@@ -15,7 +15,6 @@ export interface HeaderProps {
 }
 
 function Header({
-  siteName,
   theme,
   toggleThemeLabel,
   onToggleTheme,
@@ -28,23 +27,23 @@ function Header({
   return (
     <header className="sticky top-0 z-40 w-full bg-header shadow-sm">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <Link to="/" className="text-lg font-bold tracking-tight text-on-primary sm:text-xl">
-          {siteName}
+        <Link to="/">
+          <Logo variant="header" />
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
           {isAuthenticated ? (
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="hidden text-sm font-medium text-on-primary sm:inline">
+              <span className="hidden text-sm font-medium text-on-header sm:inline">
                 {userDisplayName}
               </span>
-              <Button variant="secondary" size="sm" onClick={onLogout}>
+              <Button variant="onHeader" size="sm" onClick={onLogout}>
                 {logoutLabel}
               </Button>
             </div>
           ) : (
             <Link to="/login">
-              <Button variant="secondary" size="sm">
+              <Button variant="onHeader" size="sm">
                 {loginLabel}
               </Button>
             </Link>
@@ -55,7 +54,7 @@ function Header({
             onClick={onToggleTheme}
             aria-label={toggleThemeLabel}
             title={toggleThemeLabel}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-on-primary/30 text-on-primary transition-colors duration-150 hover:bg-on-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-primary focus-visible:ring-offset-2 focus-visible:ring-offset-header"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-on-header/30 text-on-header transition-colors duration-150 hover:bg-on-header/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-header focus-visible:ring-offset-2 focus-visible:ring-offset-header"
           >
             {theme === 'dark' ? (
               <svg

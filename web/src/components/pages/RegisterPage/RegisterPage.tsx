@@ -6,6 +6,7 @@ import Footer from '../../common/Footer'
 import Button from '../../common/Button'
 import TextInput from '../../common/TextInput'
 import GoogleButton from '../../common/GoogleButton'
+import Logo from '../../common/Logo'
 
 export interface RegisterFormErrors {
   firstName?: string
@@ -61,6 +62,7 @@ function RegisterPage({
       <main className="mx-auto flex w-full max-w-6xl flex-1 items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
           <div className="mb-6 text-center">
+            <Logo variant="lockup" className="mx-auto mb-4 h-12" />
             <h1 className="text-2xl font-bold text-text sm:text-3xl">
               {t('auth.register.title')}
             </h1>

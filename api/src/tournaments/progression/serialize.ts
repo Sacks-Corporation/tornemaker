@@ -195,6 +195,39 @@ export interface SerializedTournament {
   thirdPlaceMatch?: SerializedMatch;
 }
 
+export interface SerializedTournamentSummary {
+  _id: string;
+  name: string;
+  format: TournamentFormat;
+  status: TournamentStatus;
+  teamCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Lightweight per-tournament summary for `GET /tournaments` (the
+ * dashboard/cards listing screen) — deliberately excludes the internal
+ * structure (fixtures, matches, standings, bracket): only the metadata a
+ * card needs. See `serializeTournament` below for the full shape used by
+ * `GET /tournaments/:id`. */
+export function serializeTournamentSummary(
+  tournament: TournamentDocument,
+): SerializedTournamentSummary {
+  const { createdAt, updatedAt } = tournament as unknown as {
+    createdAt: Date;
+    updatedAt: Date;
+  };
+  return {
+    _id: (tournament._id as { toString(): string }).toString(),
+    name: tournament.name,
+    format: tournament.format,
+    status: tournament.status,
+    teamCount: tournament.teams.length,
+    createdAt,
+    updatedAt,
+  };
+}
+
 /** Full tournament serialization for `GET /tournaments/:id` — the exact
  * shape the frontend contract depends on (see tournaments.controller.ts). */
 export function serializeTournament(

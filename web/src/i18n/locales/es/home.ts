@@ -4,6 +4,7 @@ const home = {
   cta: {
     createTournament: 'Crear torneo',
     loginToCreate: 'Iniciá sesión para crear un torneo',
+    viewTournaments: 'Torneos guardados',
   },
 } as const
 

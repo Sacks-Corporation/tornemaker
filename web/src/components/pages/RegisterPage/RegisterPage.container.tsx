@@ -6,7 +6,7 @@ import RegisterPage from './RegisterPage'
 import type { RegisterFormErrors } from './RegisterPage'
 import { useAuth } from '../../../hooks/auth/AuthContext'
 import {
-  useGoogleLoginMutation,
+  useGoogleRegisterMutation,
   useRegisterMutation,
 } from '../../../hooks/auth/useAuthMutations'
 import { getAuthErrorKey } from '../../../utils/auth.errors'
@@ -26,7 +26,7 @@ function RegisterPageContainer() {
   const [serverError, setServerError] = useState<string | null>(null)
 
   const registerMutation = useRegisterMutation()
-  const googleLoginMutation = useGoogleLoginMutation()
+  const googleRegisterMutation = useGoogleRegisterMutation()
 
   const validate = (): RegisterFormErrors => {
     const nextErrors: RegisterFormErrors = {}
@@ -94,7 +94,7 @@ function RegisterPageContainer() {
 
   const handleGoogleCredential = (idToken: string) => {
     setServerError(null)
-    googleLoginMutation.mutate(
+    googleRegisterMutation.mutate(
       { idToken },
       {
         onSuccess: (data) => {
@@ -108,7 +108,7 @@ function RegisterPageContainer() {
     )
   }
 
-  const isSubmitting = registerMutation.isPending || googleLoginMutation.isPending
+  const isSubmitting = registerMutation.isPending || googleRegisterMutation.isPending
 
   return (
     <RegisterPage

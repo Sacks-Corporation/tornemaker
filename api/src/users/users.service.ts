@@ -82,25 +82,49 @@ export class UsersService {
   }
 
   /**
-   * Finds an existing user by googleId, or links Google to an existing
-   * local account with the same email, or creates a brand new user.
+   * Finds a user matching this Google identity WITHOUT ever creating one:
+   * first by `googleId`, then by `email` (in which case Google gets linked
+   * to that existing — local or previously google-only — account). Returns
+   * `null` when neither matches, i.e. this Google identity has no account
+   * in our database yet.
+   *
+   * Used by the LOGIN flow (`AuthService.loginWithGoogle`), which must
+   * reject unknown users instead of silently creating them — see
+   * `findOrCreateFromGoogle` below for the REGISTER counterpart.
    */
-  async findOrCreateFromGoogle(
+  async findByGoogleIdentity(
     payload: GoogleUserPayload,
-  ): Promise<UserDocument> {
+  ): Promise<UserDocument | null> {
     const existingByGoogleId = await this.findByGoogleId(payload.googleId);
     if (existingByGoogleId) {
       return existingByGoogleId;
     }
 
     const existingByEmail = await this.findByEmail(payload.email);
-    if (existingByEmail) {
-      // Link Google to the existing account (local or previously google-only).
-      existingByEmail.googleId = payload.googleId;
-      if (payload.picture) {
-        existingByEmail.picture = payload.picture;
-      }
-      return existingByEmail.save();
+    if (!existingByEmail) {
+      return null;
+    }
+
+    // Link Google to the existing account (local or previously google-only).
+    existingByEmail.googleId = payload.googleId;
+    if (payload.picture) {
+      existingByEmail.picture = payload.picture;
+    }
+    return existingByEmail.save();
+  }
+
+  /**
+   * REGISTER counterpart of `findByGoogleIdentity`: same lookup/linking
+   * behavior, but creates a brand new user when no match exists instead of
+   * returning `null`. Used by `AuthService.registerWithGoogle` only — the
+   * login flow must never create a user implicitly.
+   */
+  async findOrCreateFromGoogle(
+    payload: GoogleUserPayload,
+  ): Promise<UserDocument> {
+    const existing = await this.findByGoogleIdentity(payload);
+    if (existing) {
+      return existing;
     }
 
     try {

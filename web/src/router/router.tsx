@@ -4,6 +4,7 @@ import LoginPage from '../components/pages/LoginPage'
 import RegisterPage from '../components/pages/RegisterPage'
 import NewTournamentPage from '../components/pages/NewTournamentPage'
 import TournamentPage from '../components/pages/TournamentPage'
+import TournamentListPage from '../components/pages/TournamentListPage'
 import ProtectedRoute from './ProtectedRoute'
 
 const router = createBrowserRouter([
@@ -24,6 +25,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <NewTournamentPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/tournaments',
+    element: (
+      <ProtectedRoute>
+        <TournamentListPage />
       </ProtectedRoute>
     ),
   },

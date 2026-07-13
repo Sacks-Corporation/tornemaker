@@ -50,9 +50,12 @@ export class AuthController {
   /**
    * POST /auth/google
    *
-   * Receives a Google ID token from the client (obtained after the user
-   * completes Google Sign-In on the frontend), verifies it with Google,
-   * maps/creates/links the user in our database, and returns our own JWT.
+   * LOGIN with Google. Receives a Google ID token from the client (obtained
+   * after the user completes Google Sign-In on the frontend), verifies it
+   * with Google, and maps/links it against an EXISTING user in our
+   * database. Does NOT create a user: if this Google identity has no
+   * account yet, rejects with 401 and `message: 'USER_NOT_REGISTERED'` —
+   * the frontend should catch that and offer `POST /auth/google/register`.
    *
    * Body: { idToken: string }
    * Response: { accessToken, user }
@@ -61,6 +64,24 @@ export class AuthController {
   @Post('google')
   loginWithGoogle(@Body() dto: GoogleAuthDto): Promise<AuthResult> {
     return this.authService.loginWithGoogle(dto.idToken);
+  }
+
+  /**
+   * POST /auth/google/register
+   *
+   * REGISTER with Google. Same Google ID token verification as
+   * `POST /auth/google`, but creates the user in our database when this
+   * Google identity doesn't exist yet (or links Google to a matching local
+   * account by email). If the account already exists, it just signs the
+   * user in (idempotent) — see `AuthService.registerWithGoogle` for why.
+   *
+   * Body: { idToken: string }
+   * Response: { accessToken, user }
+   */
+  @HttpCode(HttpStatus.OK)
+  @Post('google/register')
+  registerWithGoogle(@Body() dto: GoogleAuthDto): Promise<AuthResult> {
+    return this.authService.registerWithGoogle(dto.idToken);
   }
 
   /**

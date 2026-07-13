@@ -141,6 +141,22 @@ const tournament = {
       },
     },
   },
+  list: {
+    title: 'Torneos guardados',
+    loading: 'Cargando torneos…',
+    loadError: 'No pudimos cargar tus torneos. Intentá de nuevo más tarde.',
+    teamCount: '{{count}} equipos',
+    createdAt: 'Creado el {{date}}',
+    status: {
+      EN_PROGRESO: 'En progreso',
+      TERMINADO: 'Terminado',
+    },
+    empty: {
+      title: 'Todavía no tenés torneos',
+      subtitle: 'Creá tu primer torneo para empezar a organizar partidos.',
+      cta: 'Crear torneo',
+    },
+  },
   tournamentPage: {
     loading: 'Cargando torneo…',
     loadError: 'No pudimos cargar el torneo. Intentá de nuevo más tarde.',

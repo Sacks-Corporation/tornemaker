@@ -37,6 +37,7 @@ export type AuthErrorMessage =
   | 'INVALID_CREDENTIALS'
   | 'USE_GOOGLE_LOGIN'
   | 'EMAIL_ALREADY_REGISTERED'
+  | 'USER_NOT_REGISTERED'
   | string
 
 export interface AuthErrorResponse {

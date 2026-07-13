@@ -37,6 +37,14 @@
   --color-footer: var(--color-orange-500);
   --color-on-primary: #fff8ee;
 
+  /* Color fijo (no varía entre claro/oscuro) para texto/íconos sobre
+     `--color-header` y `--color-footer`. A diferencia de `--color-primary`
+     (que se ACLARA en oscuro), `--color-header`/`--color-footer` se
+     OSCURECEN en oscuro (orange-500 → orange-800), así que el contenido que
+     va encima necesita un crema fijo en vez de un token que se invierte con
+     el tema como `on-primary`. Sin entrada en `.dark {...}` a propósito. */
+  --color-on-header: #fff8ee;
+
   /* Scrollbars acordes al tema (thumb / track) */
   --color-scrollbar-thumb: var(--color-orange-200);
   --color-scrollbar-track: var(--color-cream-100);

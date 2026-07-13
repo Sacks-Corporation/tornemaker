@@ -13,8 +13,13 @@ import { tournamentQueryKeys } from './useTournamentQueries'
 // directamente.
 
 export function useCreateTournamentMutation() {
+  const queryClient = useQueryClient()
+
   return useMutation<Tournament, unknown, CreateTournamentPayload>({
     mutationFn: createTournament,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tournamentQueryKeys.list() })
+    },
   })
 }
 

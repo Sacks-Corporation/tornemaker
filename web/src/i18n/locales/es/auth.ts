@@ -49,11 +49,14 @@ const auth = {
     invalidCredentials: 'Correo o contraseña incorrectos',
     useGoogleLogin: 'Esta cuenta usa Google para iniciar sesión',
     emailAlreadyRegistered: 'Ese correo ya está registrado',
+    userNotRegistered: 'No existe una cuenta con este Google. Registrate primero.',
+    userNotRegisteredCta: 'Crear cuenta con Google',
     generic: 'Ocurrió un error inesperado. Intentá de nuevo.',
   },
   session: {
     loginCta: 'Iniciar sesión',
     logoutCta: 'Cerrar sesión',
+    expiredMessage: 'Tu sesión expiró. Volvé a iniciar sesión.',
   },
 } as const
 

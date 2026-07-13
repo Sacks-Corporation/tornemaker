@@ -7,6 +7,7 @@ const KNOWN_MESSAGE_KEYS: Record<string, string> = {
   INVALID_CREDENTIALS: 'auth.errors.invalidCredentials',
   USE_GOOGLE_LOGIN: 'auth.errors.useGoogleLogin',
   EMAIL_ALREADY_REGISTERED: 'auth.errors.emailAlreadyRegistered',
+  USER_NOT_REGISTERED: 'auth.errors.userNotRegistered',
 }
 
 // Traduce un error de axios proveniente de la API a una clave i18n lista para
@@ -20,4 +21,14 @@ export function getAuthErrorKey(error: unknown): string {
     }
   }
   return 'auth.errors.generic'
+}
+
+// Indica si el error de axios corresponde a un login con Google de un usuario que
+// todavía no tiene cuenta creada (backend responde 401 USER_NOT_REGISTERED).
+export function isUserNotRegisteredError(error: unknown): boolean {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as AuthErrorResponse | undefined
+    return data?.message === 'USER_NOT_REGISTERED'
+  }
+  return false
 }

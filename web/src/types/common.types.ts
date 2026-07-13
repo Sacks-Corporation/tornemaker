@@ -17,7 +17,7 @@ export type ThemeMode = 'light' | 'dark'
 
 // Componentes comunes
 
-export type ButtonVariant = 'primary' | 'secondary' | 'text'
+export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'onHeader'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export type SnackbarVariant = 'success' | 'error'

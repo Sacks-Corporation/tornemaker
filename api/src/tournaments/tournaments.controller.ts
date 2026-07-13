@@ -15,7 +15,10 @@ import type { UserDocument } from '../users/schemas/user.schema';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
 import { PlayableMatchItem } from './progression/playable-matches.util';
-import { SerializedTournament } from './progression/serialize';
+import {
+  SerializedTournament,
+  SerializedTournamentSummary,
+} from './progression/serialize';
 import { TournamentDocument } from './schemas/tournament.schema';
 import { TournamentsService } from './tournaments.service';
 
@@ -39,6 +42,29 @@ export class TournamentsController {
   ): Promise<TournamentDocument> {
     const ownerId = (req.user._id as { toString(): string }).toString();
     return this.tournamentsService.create(ownerId, dto);
+  }
+
+  /**
+   * GET /tournaments
+   *
+   * Lightweight listing (dashboard/cards screen) of every tournament owned
+   * by the authenticated user, most recently created first. Does NOT
+   * include the internal structure (fixtures/matches/standings/bracket) —
+   * see `GET /tournaments/:id` for that. `ownerId` is taken from the JWT,
+   * never from a query param.
+   *
+   * Declared BEFORE `@Get(':id')` as a matter of style (static routes
+   * first) even though there is no actual collision here: `@Get()` only
+   * matches the exact `/tournaments` path (zero extra segments), while
+   * `@Get(':id')` requires exactly one segment, so the two never overlap.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findAll(
+    @Request() req: { user: UserDocument },
+  ): Promise<SerializedTournamentSummary[]> {
+    const ownerId = (req.user._id as { toString(): string }).toString();
+    return this.tournamentsService.findAllForOwner(ownerId);
   }
 
   /**

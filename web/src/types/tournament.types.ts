@@ -64,6 +64,18 @@ export type TournamentStatus = 'EN_PROGRESO' | 'TERMINADO'
 
 export type MatchStatus = 'SCHEDULED' | 'PLAYED' | 'WALKOVER'
 
+// Ítem de GET /tournaments: metadata liviana de un torneo guardado del
+// usuario (sin fixtures/matches/standings), usada en la pantalla de listado.
+export interface TournamentSummary {
+  _id: string
+  name: string
+  format: TournamentFormat
+  status: TournamentStatus
+  teamCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface MatchLeg {
   console: string
   homeGoals: number

@@ -6,6 +6,7 @@ import './i18n/i18n'
 import './index.css'
 import router from './router/router'
 import { AuthProvider } from './hooks/auth/AuthContext'
+import SessionExpiredSnackbar from './components/common/SessionExpiredSnackbar'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,6 +25,7 @@ createRoot(rootElement).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
+        <SessionExpiredSnackbar />
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,

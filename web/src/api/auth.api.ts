@@ -18,4 +18,7 @@ export const login = (payload: LoginPayload): Promise<AuthResponse> =>
 export const loginWithGoogle = (payload: GoogleLoginPayload): Promise<AuthResponse> =>
   apiPost<AuthResponse, GoogleLoginPayload>('/auth/google', payload)
 
+export const registerWithGoogle = (payload: GoogleLoginPayload): Promise<AuthResponse> =>
+  apiPost<AuthResponse, GoogleLoginPayload>('/auth/google/register', payload)
+
 export const getMe = (): Promise<User> => apiGet<User>('/auth/me')

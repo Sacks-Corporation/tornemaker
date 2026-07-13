@@ -16,7 +16,18 @@ function HomePageContainer() {
     navigate(isAuthenticated ? '/new' : '/login')
   }
 
-  return <HomePage ctaLabel={ctaLabel} onCtaClick={handleCtaClick} />
+  const handleViewTournamentsClick = () => {
+    navigate(isAuthenticated ? '/tournaments' : '/login')
+  }
+
+  return (
+    <HomePage
+      ctaLabel={ctaLabel}
+      onCtaClick={handleCtaClick}
+      viewTournamentsLabel={t('home.cta.viewTournaments')}
+      onViewTournamentsClick={handleViewTournamentsClick}
+    />
+  )
 }
 
 export default HomePageContainer
