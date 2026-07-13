@@ -8,7 +8,9 @@ export interface TournamentCardProps {
   statusLabel: string
   teamCountLabel: string
   dateLabel: string
+  deleteLabel: string
   onClick: () => void
+  onDelete: () => void
 }
 
 const statusClasses: Record<TournamentStatus, string> = {
@@ -26,7 +28,9 @@ function TournamentCard({
   statusLabel,
   teamCountLabel,
   dateLabel,
+  deleteLabel,
   onClick,
+  onDelete,
 }: TournamentCardProps) {
   const handleClick = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -39,6 +43,14 @@ function TournamentCard({
     onClick()
   }
 
+  const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
+    // La card entera es clickeable (navega al detalle); el botón de borrar
+    // vive adentro, así que hay que frenar la propagación para no navegar.
+    event.stopPropagation()
+    event.preventDefault()
+    onDelete()
+  }
+
   return (
     <div
       role="button"
@@ -49,14 +61,39 @@ function TournamentCard({
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-base font-semibold text-text sm:text-lg">{name}</h3>
-        <span
-          className={[
-            'shrink-0 rounded-full border px-3 py-1 text-xs font-medium',
-            statusClasses[status],
-          ].join(' ')}
-        >
-          {statusLabel}
-        </span>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className={[
+              'rounded-full border px-3 py-1 text-xs font-medium',
+              statusClasses[status],
+            ].join(' ')}
+          >
+            {statusLabel}
+          </span>
+
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            aria-label={deleteLabel}
+            title={deleteLabel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-red-600/10 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M8.75 1a.75.75 0 0 0-.75.75V3H4.5a.75.75 0 0 0 0 1.5h.394l.812 10.556A2 2 0 0 0 7.7 17h4.6a2 2 0 0 0 1.994-1.944L15.106 4.5H15.5a.75.75 0 0 0 0-1.5H12v-1.25a.75.75 0 0 0-.75-.75h-2.5ZM8.5 7.25a.75.75 0 0 1 1.5 0v6.5a.75.75 0 0 1-1.5 0v-6.5Zm3.5 0a.75.75 0 0 0-1.5 0v6.5a.75.75 0 0 0 1.5 0v-6.5Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <p className="text-sm text-text-muted">{formatLabel}</p>

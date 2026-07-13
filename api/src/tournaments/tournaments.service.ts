@@ -102,7 +102,10 @@ export class TournamentsService {
    */
   async findAllForOwner(ownerId: string): Promise<SerializedTournamentSummary[]> {
     const tournaments = await this.tournamentModel
-      .find({ ownerId: new Types.ObjectId(ownerId) })
+      .find({
+        ownerId: new Types.ObjectId(ownerId),
+        state: { $ne: TournamentState.DELETED },
+      })
       .select('name format status teams createdAt updatedAt')
       .sort({ createdAt: -1 })
       .exec();
@@ -141,6 +144,22 @@ export class TournamentsService {
   }
 
   /**
+   * DELETE /tournaments/:id — soft delete. The document is NEVER removed
+   * from MongoDB (so it can still be used for future statistics): this just
+   * moves `state` to the terminal `TournamentState.DELETED` and stamps
+   * `deletedAt`. Reuses `findOwnedTournamentOrThrow`, which already excludes
+   * `DELETED` tournaments, so deleting an already-deleted (or foreign/
+   * nonexistent) tournament also 404s — from the caller's point of view it
+   * simply no longer exists.
+   */
+  async softDeleteForOwner(ownerId: string, id: string): Promise<void> {
+    const tournament = await this.findOwnedTournamentOrThrow(ownerId, id);
+    tournament.state = TournamentState.DELETED;
+    tournament.deletedAt = new Date();
+    await tournament.save();
+  }
+
+  /**
    * PATCH /tournaments/match/:matchId — records a single leg's result and
    * runs the progression engine (standings, tiebreaks, bracket advancement,
    * Swiss pairing, stage transitions — see MatchProgressionService),
@@ -163,6 +182,12 @@ export class TournamentsService {
 
   // --- Lookup helpers ------------------------------------------------
 
+  /**
+   * Looks up a tournament by id, scoped to its owner. Soft-deleted
+   * tournaments (`state = DELETED`) are treated as not found, so this is
+   * also what backs `DELETE /tournaments/:id` itself: deleting an
+   * already-deleted tournament 404s just like any other read.
+   */
   private async findOwnedTournamentOrThrow(
     ownerId: string,
     id: string,
@@ -173,6 +198,7 @@ export class TournamentsService {
     const tournament = await this.tournamentModel.findOne({
       _id: id,
       ownerId: new Types.ObjectId(ownerId),
+      state: { $ne: TournamentState.DELETED },
     });
     if (!tournament) {
       throw new NotFoundException(`Tournament ${id} not found`);
@@ -186,6 +212,7 @@ export class TournamentsService {
   ): Promise<TournamentDocument> {
     const tournament = await this.tournamentModel.findOne({
       ownerId: new Types.ObjectId(ownerId),
+      state: { $ne: TournamentState.DELETED },
       $or: [
         { 'leagueStage.matchdays.matches.matchId': matchId },
         { 'leagueStage.tiebreakMatches.matchId': matchId },

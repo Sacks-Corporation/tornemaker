@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -98,6 +99,30 @@ export class TournamentsController {
   ): Promise<PlayableMatchItem[]> {
     const ownerId = (req.user._id as { toString(): string }).toString();
     return this.tournamentsService.getPlayableMatches(ownerId, id);
+  }
+
+  /**
+   * DELETE /tournaments/:id
+   *
+   * Soft delete: the tournament document is NOT removed from MongoDB (kept
+   * for future statistics on deleted tournaments) — this moves `state` to
+   * the terminal `TournamentState.DELETED` and stamps `deletedAt` (see
+   * tournaments.service.ts / tournament-state.enum.ts). Once deleted, the
+   * tournament behaves as if it did not exist for every other endpoint
+   * (404 on GET/PATCH, excluded from the `GET /tournaments` listing), and
+   * deleting it again also 404s. `ownerId` is taken from the JWT, never
+   * from the body/query. Response contract with the frontend is
+   * `204 No Content` — do not change it.
+   */
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete(':id')
+  remove(
+    @Request() req: { user: UserDocument },
+    @Param('id') id: string,
+  ): Promise<void> {
+    const ownerId = (req.user._id as { toString(): string }).toString();
+    return this.tournamentsService.softDeleteForOwner(ownerId, id);
   }
 
   /**

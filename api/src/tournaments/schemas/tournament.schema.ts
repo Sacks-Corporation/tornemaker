@@ -153,6 +153,14 @@ export class Tournament {
   @Prop()
   finishedAt?: Date;
 
+  /**
+   * Set exclusively by `DELETE /tournaments/:id` at the same time `state`
+   * is moved to `TournamentState.DELETED` (soft delete). Kept for future
+   * statistics on removed tournaments — never cleared once set.
+   */
+  @Prop()
+  deletedAt?: Date;
+
   // createdAt and updatedAt are injected automatically by { timestamps: true }
 }
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import Header from '../../common/Header'
 import Footer from '../../common/Footer'
@@ -21,6 +22,9 @@ export interface TournamentListPageProps {
   tournaments: TournamentListItem[]
   onSelectTournament: (tournamentId: string) => void
   onCreateClick: () => void
+  onDeleteTournament: (tournament: TournamentListItem) => void
+  modal: ReactNode
+  snackbar: ReactNode
 }
 
 // Listado de torneos guardados del usuario. Solo pinta la metadata liviana
@@ -31,6 +35,9 @@ function TournamentListPage({
   tournaments,
   onSelectTournament,
   onCreateClick,
+  onDeleteTournament,
+  modal,
+  snackbar,
 }: TournamentListPageProps) {
   const { t } = useTranslation()
   const isEmpty = !isLoading && !isError && tournaments.length === 0
@@ -74,6 +81,7 @@ function TournamentListPage({
                 teamCountLabel={tournament.teamCountLabel}
                 dateLabel={tournament.dateLabel}
                 onClick={() => onSelectTournament(tournament.id)}
+                onDelete={() => onDeleteTournament(tournament)}
               />
             ))}
           </div>
@@ -81,6 +89,8 @@ function TournamentListPage({
       </main>
 
       <Footer />
+      {modal}
+      {snackbar}
     </div>
   )
 }

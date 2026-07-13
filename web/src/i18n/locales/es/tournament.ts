@@ -156,6 +156,22 @@ const tournament = {
       subtitle: 'Creá tu primer torneo para empezar a organizar partidos.',
       cta: 'Crear torneo',
     },
+    card: {
+      deleteLabel: 'Eliminar torneo',
+    },
+    deleteModal: {
+      title: 'Eliminar torneo',
+      message: '¿Estás seguro que quieres borrar {{name}}? La acción no podrá deshacerse.',
+      cancel: 'Cancelar',
+      confirm: 'Eliminar',
+      confirming: 'Eliminando…',
+      errors: {
+        generic: 'Ocurrió un error al eliminar el torneo. Intentá de nuevo.',
+      },
+    },
+    snackbar: {
+      success: 'El torneo se eliminó correctamente',
+    },
   },
   tournamentPage: {
     loading: 'Cargando torneo…',

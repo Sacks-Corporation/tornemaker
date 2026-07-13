@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createTournament, patchMatchResult } from '../../api/tournaments.api'
+import { createTournament, deleteTournament, patchMatchResult } from '../../api/tournaments.api'
 import type {
   CreateTournamentPayload,
   MatchResultPayload,
@@ -42,6 +42,19 @@ export function useMatchResultMutation(tournamentId: string) {
       void queryClient.invalidateQueries({
         queryKey: tournamentQueryKeys.upcomingMatches(tournamentId),
       })
+    },
+  })
+}
+
+// Borra un torneo guardado desde el listado. Al finalizar con éxito, refresca
+// el listado (la card eliminada deja de aparecer).
+export function useDeleteTournamentMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, unknown, string>({
+    mutationFn: deleteTournament,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tournamentQueryKeys.list() })
     },
   })
 }

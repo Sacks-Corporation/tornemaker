@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from './api'
+import { apiDelete, apiGet, apiPatch, apiPost } from './api'
 import type {
   CreateTournamentPayload,
   MatchResultPayload,
@@ -34,3 +34,8 @@ export const patchMatchResult = (
   payload: MatchResultPayload,
 ): Promise<TournamentDetail> =>
   apiPatch<TournamentDetail, MatchResultPayload>(`/tournaments/match/${matchId}`, payload)
+
+// Elimina un torneo guardado del usuario. El back hace un borrado lógico,
+// pero de cara al front/usuario es un borrado definitivo (204 No Content).
+export const deleteTournament = (tournamentId: string): Promise<void> =>
+  apiDelete<void>(`/tournaments/${tournamentId}`)

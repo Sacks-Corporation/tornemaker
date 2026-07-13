@@ -22,6 +22,13 @@
  *             played.
  * `LEAGUE`, `GROUPS` and `SWISS` never transition directly to `FINISHED` —
  * `GROUPS`/`SWISS` always pass through `KNOCKOUTS` first.
+ *
+ * `DELETED` is a special-cased terminal state: it is NEVER set by the
+ * progression engine and has no place in the transition table above. It is
+ * set exclusively by `DELETE /tournaments/:id` (soft delete — the document
+ * is kept, alongside `Tournament.deletedAt`, for future statistics; see
+ * tournaments.service.ts). Once a tournament is `DELETED` it is treated as
+ * not found by every other read/write endpoint.
  */
 export enum TournamentState {
   LEAGUE = 'LEAGUE',
@@ -29,4 +36,5 @@ export enum TournamentState {
   SWISS = 'SWISS',
   KNOCKOUTS = 'KNOCKOUTS',
   FINISHED = 'FINISHED',
+  DELETED = 'DELETED',
 }
