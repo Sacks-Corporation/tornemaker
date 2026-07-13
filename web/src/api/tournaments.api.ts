@@ -39,3 +39,9 @@ export const patchMatchResult = (
 // pero de cara al front/usuario es un borrado definitivo (204 No Content).
 export const deleteTournament = (tournamentId: string): Promise<void> =>
   apiDelete<void>(`/tournaments/${tournamentId}`)
+
+// Resetea un torneo: reinicia todos los partidos como si el torneo no se
+// hubiese jugado. La respuesta es el torneo actualizado completo (misma
+// forma que getTournament).
+export const resetTournament = (tournamentId: string): Promise<TournamentDetail> =>
+  apiPost<TournamentDetail>(`/tournaments/${tournamentId}/reset`)

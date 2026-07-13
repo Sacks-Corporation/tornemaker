@@ -9,6 +9,7 @@ export interface UpcomingMatchesBarContainerProps {
   upcomingMatches: UpcomingMatch[]
   teamMap: Map<string, TournamentTeam>
   onSelectMatch: (match: UpcomingMatch) => void
+  onResetClick: () => void
 }
 
 // Arma las cards de próximos partidos a partir de GET /matches: solo
@@ -19,6 +20,7 @@ function UpcomingMatchesBarContainer({
   upcomingMatches,
   teamMap,
   onSelectMatch,
+  onResetClick,
 }: UpcomingMatchesBarContainerProps) {
   const { t } = useTranslation()
   const placeholder = t('tournament.tournamentPage.placeholderTeam')
@@ -79,6 +81,7 @@ function UpcomingMatchesBarContainer({
       isFinished={isFinished}
       championName={championName}
       onSelectMatch={handleSelectMatch}
+      onResetClick={onResetClick}
     />
   )
 }

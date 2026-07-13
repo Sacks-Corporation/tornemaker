@@ -9,6 +9,7 @@ import LeagueStagePanel from './LeagueStagePanel'
 import GroupStagePanel from './GroupStagePanel'
 import SwissBoard from './SwissBoard'
 import MatchResultModal from './MatchResultModal'
+import ResetTournamentModal from './ResetTournamentModal'
 import Snackbar from '../../common/Snackbar'
 import type { TabItem } from '../../common/Tabs'
 import { useTournamentQuery, useUpcomingMatchesQuery } from '../../../hooks/tournaments/useTournamentQueries'
@@ -36,6 +37,7 @@ function TournamentPageContainer() {
 
   const [activeTab, setActiveTab] = useState<string | null>(null)
   const [selectedMatch, setSelectedMatch] = useState<UpcomingMatch | null>(null)
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false)
   const [snackbarState, setSnackbarState] = useState<SnackbarState | null>(null)
 
   const tournament = tournamentQuery.data
@@ -101,6 +103,18 @@ function TournamentPageContainer() {
     setSnackbarState({ message, variant: 'error' })
   }
 
+  const handleResetClick = () => setIsResetModalOpen(true)
+  const handleCloseResetModal = () => setIsResetModalOpen(false)
+
+  const handleResetSuccess = () => {
+    setIsResetModalOpen(false)
+    setSnackbarState({ message: t('tournament.tournamentPage.resetModal.snackbar.success'), variant: 'success' })
+  }
+
+  const handleResetError = (message: string) => {
+    setSnackbarState({ message, variant: 'error' })
+  }
+
   let content: ReactNode = null
 
   if (tournament) {
@@ -154,24 +168,38 @@ function TournamentPageContainer() {
       upcomingMatches={upcomingMatchesQuery.data ?? []}
       teamMap={teamMap}
       onSelectMatch={handleSelectMatch}
+      onResetClick={handleResetClick}
     />
   )
 
-  const modal = tournament && selectedMatch && (
-    <MatchResultModal
-      tournamentId={tournamentId}
-      match={selectedMatch}
-      legLabel={
-        selectedMatch.legNumber === 2 || isTwoLeggedPhase(tournament, selectedMatch.phase)
-          ? selectedMatch.legNumber === 1
-            ? t('tournament.tournamentPage.upcomingBar.legFirst')
-            : t('tournament.tournamentPage.upcomingBar.legSecond')
-          : undefined
-      }
-      onClose={handleCloseModal}
-      onSuccess={handleModalSuccess}
-      onError={handleModalError}
-    />
+  const modal = (
+    <>
+      {tournament && selectedMatch && (
+        <MatchResultModal
+          tournamentId={tournamentId}
+          match={selectedMatch}
+          legLabel={
+            selectedMatch.legNumber === 2 || isTwoLeggedPhase(tournament, selectedMatch.phase)
+              ? selectedMatch.legNumber === 1
+                ? t('tournament.tournamentPage.upcomingBar.legFirst')
+                : t('tournament.tournamentPage.upcomingBar.legSecond')
+              : undefined
+          }
+          onClose={handleCloseModal}
+          onSuccess={handleModalSuccess}
+          onError={handleModalError}
+        />
+      )}
+
+      {tournament && isResetModalOpen && (
+        <ResetTournamentModal
+          tournamentId={tournamentId}
+          onClose={handleCloseResetModal}
+          onSuccess={handleResetSuccess}
+          onError={handleResetError}
+        />
+      )}
+    </>
   )
 
   const snackbar = (

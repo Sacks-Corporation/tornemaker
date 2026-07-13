@@ -30,7 +30,11 @@ import {
 } from './progression/serialize';
 import { TournamentFormat } from './schemas/common/tournament-format.enum';
 import { TournamentState } from './schemas/common/tournament-state.enum';
-import { Tournament, TournamentDocument } from './schemas/tournament.schema';
+import {
+  Tournament,
+  TournamentDocument,
+  TournamentStatus,
+} from './schemas/tournament.schema';
 
 /** Initial `Tournament.state` derived from `format` — see tournament-state.enum.ts. */
 const INITIAL_STATE_BY_FORMAT: Record<TournamentFormat, TournamentState> = {
@@ -100,7 +104,9 @@ export class TournamentsService {
    * standings), sorted by most recently created first — matches the
    * `{ ownerId: 1, createdAt: -1 }` index on the schema.
    */
-  async findAllForOwner(ownerId: string): Promise<SerializedTournamentSummary[]> {
+  async findAllForOwner(
+    ownerId: string,
+  ): Promise<SerializedTournamentSummary[]> {
     const tournaments = await this.tournamentModel
       .find({
         ownerId: new Types.ObjectId(ownerId),
@@ -180,6 +186,61 @@ export class TournamentsService {
     return serializeTournament(tournament);
   }
 
+  /**
+   * POST /tournaments/:id/reset — puts the tournament back exactly in the
+   * state it was in right after `create()`: every played match/result is
+   * discarded and a brand-new fixture/draw is generated (fresh `teamId`s,
+   * a new random seed order, standings back to zero, no bracket yet for the
+   * formats that only build one later) via the SAME `DrawService.generate`
+   * path `create()` uses — never reimplemented here. Only the "playable"
+   * part is touched; metadata (`name`, `ownerId`, `format`, `matchMode`,
+   * consoles, `createdAt`) is left untouched. The team names/players and the
+   * draw options (two-legged, third-place match, group size) are read back
+   * from whatever is currently persisted, so a reset after progression
+   * (e.g. once the standalone `thirdPlaceMatch` slot has already been
+   * consumed into the bracket, see MatchProgressionService) still derives
+   * the original configuration correctly.
+   *
+   * A new random draw is not guaranteed to reproduce the original pairings
+   * — only "as if freshly created", not "identical to the original draw".
+   * Resetting a `FINISHED` tournament is explicitly allowed (that's the
+   * whole point); `DELETED`/foreign/nonexistent tournaments 404 via
+   * `findOwnedTournamentOrThrow`. Response is the full updated tournament,
+   * same shape as `GET /tournaments/:id`.
+   */
+  async resetForOwner(
+    ownerId: string,
+    id: string,
+  ): Promise<SerializedTournament> {
+    const tournament = await this.findOwnedTournamentOrThrow(ownerId, id);
+
+    const teamInputs: DrawTeamInput[] = tournament.teams.map((team) => ({
+      name: team.name,
+      playerNames: team.playerNames,
+    }));
+
+    const drawResult = this.drawService.generate(teamInputs, {
+      format: tournament.format,
+      twoLegged: this.resolveTwoLegged(tournament),
+      thirdPlaceMatch: this.resolveThirdPlaceMatch(tournament),
+      groupSize: tournament.groupStage?.groupSize,
+    });
+
+    tournament.state = INITIAL_STATE_BY_FORMAT[tournament.format];
+    tournament.status = TournamentStatus.EN_PROGRESO;
+    tournament.teams = drawResult.teams;
+    tournament.leagueStage = drawResult.leagueStage;
+    tournament.knockoutStage = drawResult.knockoutStage;
+    tournament.groupStage = drawResult.groupStage;
+    tournament.swissStage = drawResult.swissStage;
+    tournament.thirdPlaceMatch = drawResult.standaloneThirdPlaceMatch;
+    tournament.startedAt = undefined;
+    tournament.finishedAt = undefined;
+
+    await tournament.save();
+    return serializeTournament(tournament);
+  }
+
   // --- Lookup helpers ------------------------------------------------
 
   /**
@@ -231,6 +292,53 @@ export class TournamentsService {
       );
     }
     return tournament;
+  }
+
+  // --- reset() helpers ---------------------------------------------------
+
+  /**
+   * Recovers the `twoLegged` draw option originally submitted at creation
+   * time. There is no single dedicated field for it: each format persists
+   * it on whichever stage carries its own fixtures (see the per-format
+   * schema docs), so it survives a reset regardless of how far the
+   * tournament has progressed.
+   */
+  private resolveTwoLegged(tournament: TournamentDocument): boolean {
+    switch (tournament.format) {
+      case TournamentFormat.LEAGUE:
+        return tournament.leagueStage?.doubleRound ?? false;
+      case TournamentFormat.SINGLE_ELIMINATION:
+        return tournament.knockoutStage?.bracket.isTwoLegged ?? false;
+      case TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION:
+        return tournament.groupStage?.doubleRound ?? false;
+      case TournamentFormat.SWISS_PLUS_ELIMINATION:
+        return tournament.swissStage?.knockoutTwoLegged ?? false;
+      default: {
+        const exhaustiveCheck: never = tournament.format;
+        throw new Error(
+          `Unsupported tournament format: ${String(exhaustiveCheck)}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Recovers the `thirdPlaceMatch` draw option. For GROUP_STAGE_PLUS_
+   * ELIMINATION / SWISS_PLUS_ELIMINATION it starts out on the standalone
+   * `Tournament.thirdPlaceMatch` placeholder but is consumed and cleared
+   * once the knockout bracket is built from the group/Swiss qualifiers (see
+   * MatchProgressionService.finishGroupStage/finishSwissStage), moving the
+   * signal onto `knockoutStage.bracket.hasThirdPlaceMatch` instead — so
+   * either location is checked here. LEAGUE never has one.
+   */
+  private resolveThirdPlaceMatch(tournament: TournamentDocument): boolean {
+    if (tournament.format === TournamentFormat.LEAGUE) {
+      return false;
+    }
+    return (
+      Boolean(tournament.thirdPlaceMatch) ||
+      Boolean(tournament.knockoutStage?.bracket.hasThirdPlaceMatch)
+    );
   }
 
   // --- Validation helpers (cross-field rules, hence not in the DTO) ------

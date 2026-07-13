@@ -145,4 +145,29 @@ export class TournamentsController {
     const ownerId = (req.user._id as { toString(): string }).toString();
     return this.tournamentsService.recordMatchResult(ownerId, matchId, dto);
   }
+
+  /**
+   * POST /tournaments/:id/reset
+   *
+   * Puts the tournament back exactly as it was right after `POST
+   * /tournaments`: every played match/result is discarded and a brand-new
+   * fixture/draw is regenerated from the same teams/format/options already
+   * persisted, by reusing DrawService (see tournaments.service.ts) — never
+   * a re-run of the exact original draw, just an equally-fresh one. Allowed
+   * on a `FINISHED` tournament (that's the point of resetting it); a
+   * `DELETED`/foreign/nonexistent tournament 404s via
+   * `findOwnedTournamentOrThrow`. `ownerId` is taken from the JWT, never
+   * from the body. Response contract with the frontend is the full updated
+   * tournament, same shape as `GET /tournaments/:id`.
+   */
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post(':id/reset')
+  reset(
+    @Request() req: { user: UserDocument },
+    @Param('id') id: string,
+  ): Promise<SerializedTournament> {
+    const ownerId = (req.user._id as { toString(): string }).toString();
+    return this.tournamentsService.resetForOwner(ownerId, id);
+  }
 }

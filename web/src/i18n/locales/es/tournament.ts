@@ -204,6 +204,21 @@ const tournament = {
       firstLegResult: 'Ida: {{home}} - {{away}}',
       console: 'Consola: {{console}}',
       loadResult: 'Cargar resultado',
+      resetButton: 'Resetear torneo',
+    },
+    resetModal: {
+      title: 'Resetear torneo',
+      message:
+        'Resetear el torneo reiniciará todos los partidos como si el torneo no se hubiese jugado. Esta acción no puede deshacerse.',
+      cancel: 'Cancelar',
+      confirm: 'Resetear',
+      confirming: 'Reseteando…',
+      errors: {
+        generic: 'Ocurrió un error al resetear el torneo. Intentá de nuevo.',
+      },
+      snackbar: {
+        success: 'El torneo se reseteó correctamente',
+      },
     },
     standings: {
       columns: {

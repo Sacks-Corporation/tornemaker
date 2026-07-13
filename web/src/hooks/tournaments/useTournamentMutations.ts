@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createTournament, deleteTournament, patchMatchResult } from '../../api/tournaments.api'
+import { createTournament, deleteTournament, patchMatchResult, resetTournament } from '../../api/tournaments.api'
 import type {
   CreateTournamentPayload,
   MatchResultPayload,
@@ -36,6 +36,25 @@ export function useMatchResultMutation(tournamentId: string) {
 
   return useMutation<TournamentDetail, unknown, MatchResultMutationVariables>({
     mutationFn: ({ matchId, payload }) => patchMatchResult(matchId, payload),
+    onSuccess: (tournament) => {
+      queryClient.setQueryData(tournamentQueryKeys.detail(tournamentId), tournament)
+      void queryClient.invalidateQueries({ queryKey: tournamentQueryKeys.detail(tournamentId) })
+      void queryClient.invalidateQueries({
+        queryKey: tournamentQueryKeys.upcomingMatches(tournamentId),
+      })
+    },
+  })
+}
+
+// Resetea un torneo (reinicia todos los partidos). Al finalizar con éxito, se
+// comporta igual que useMatchResultMutation: la respuesta ya trae el torneo
+// actualizado, así que se guarda directo en cache y además se invalidan
+// detail + upcomingMatches para refrescar la pantalla completa.
+export function useResetTournamentMutation(tournamentId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation<TournamentDetail, unknown, void>({
+    mutationFn: () => resetTournament(tournamentId),
     onSuccess: (tournament) => {
       queryClient.setQueryData(tournamentQueryKeys.detail(tournamentId), tournament)
       void queryClient.invalidateQueries({ queryKey: tournamentQueryKeys.detail(tournamentId) })

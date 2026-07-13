@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import Button from '../../../common/Button'
 
 export interface UpcomingMatchCardView {
   matchId: string
@@ -20,6 +21,7 @@ export interface UpcomingMatchesBarProps {
   isFinished: boolean
   championName?: string
   onSelectMatch: (matchId: string) => void
+  onResetClick: () => void
 }
 
 function MatchCard({
@@ -87,15 +89,32 @@ function MatchCard({
 // Barra superior, siempre visible, con los próximos partidos jugables (todos
 // en simultáneo, en consolas distintas). Click en una card abre el modal de
 // carga de resultado.
-function UpcomingMatchesBar({ matches, isFinished, championName, onSelectMatch }: UpcomingMatchesBarProps) {
+function UpcomingMatchesBar({
+  matches,
+  isFinished,
+  championName,
+  onSelectMatch,
+  onResetClick,
+}: UpcomingMatchesBarProps) {
   const { t } = useTranslation()
 
   return (
     <section className="w-full border-b border-border bg-surface px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-          {t('tournament.tournamentPage.upcomingBar.title')}
-        </h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            {t('tournament.tournamentPage.upcomingBar.title')}
+          </h2>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onResetClick}
+            className="self-start sm:self-auto"
+          >
+            {t('tournament.tournamentPage.upcomingBar.resetButton')}
+          </Button>
+        </div>
 
         {isFinished ? (
           <div className="rounded-2xl border-2 border-primary bg-primary/10 p-4 text-center">
