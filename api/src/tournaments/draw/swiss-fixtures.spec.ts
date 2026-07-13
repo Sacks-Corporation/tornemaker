@@ -4,7 +4,7 @@ import { makeSeededTeams } from './test-helpers';
 describe('buildSwissStage', () => {
   it('initializes all participants at 0-0 and pairs everyone in round 1', () => {
     const teams = makeSeededTeams(8);
-    const stage = buildSwissStage(teams);
+    const stage = buildSwissStage(teams, false);
 
     expect(stage.winsToQualify).toBe(3);
     expect(stage.lossesToEliminate).toBe(3);
@@ -44,8 +44,25 @@ describe('buildSwissStage', () => {
   ])(
     'derives targetQualifiers for teamCount=%i -> %i',
     (teamCount, expectedTargetQualifiers) => {
-      const stage = buildSwissStage(makeSeededTeams(teamCount));
+      const stage = buildSwissStage(makeSeededTeams(teamCount), false);
       expect(stage.targetQualifiers).toBe(expectedTargetQualifiers);
     },
   );
+
+  it('persists knockoutTwoLegged from the organizer choice without affecting Swiss matches themselves', () => {
+    const teams = makeSeededTeams(8);
+
+    const singleLeg = buildSwissStage(teams, false);
+    expect(singleLeg.knockoutTwoLegged).toBe(false);
+    expect(
+      singleLeg.rounds[0].matches.every((m) => m.isTwoLegged === false),
+    ).toBe(true);
+
+    const twoLegged = buildSwissStage(teams, true);
+    expect(twoLegged.knockoutTwoLegged).toBe(true);
+    // Swiss matches are ALWAYS single-leg, regardless of knockoutTwoLegged.
+    expect(
+      twoLegged.rounds[0].matches.every((m) => m.isTwoLegged === false),
+    ).toBe(true);
+  });
 });

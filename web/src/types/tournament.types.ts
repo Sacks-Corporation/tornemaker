@@ -49,6 +49,202 @@ export interface Tournament {
   assignments: TeamAssignment[]
 }
 
+// --------------------------------------------------------------------------
+// Visualización de torneo y carga de resultados (GET /tournaments/:id,
+// GET /tournaments/:id/matches, PATCH /tournaments/match/:matchId).
+//
+// El front NUNCA calcula lógica de torneo (posiciones, avance, clasificados,
+// próximos partidos): solo pinta lo que devuelve la API. La única cuenta
+// permitida es el global ida+vuelta que se muestra en el modal de carga como
+// conveniencia visual (el back valida igual).
+
+export type TournamentState = 'LEAGUE' | 'GROUPS' | 'SWISS' | 'KNOCKOUTS' | 'FINISHED'
+
+export type TournamentStatus = 'EN_PROGRESO' | 'TERMINADO'
+
+export type MatchStatus = 'SCHEDULED' | 'PLAYED' | 'WALKOVER'
+
+export interface MatchLeg {
+  console: string
+  homeGoals: number
+  awayGoals: number
+  wentToPenalties: boolean
+  legWinnerTeamId?: string
+}
+
+// Bloque común a todas las fases.
+export interface Match {
+  matchId: string
+  homeTeamId?: string
+  awayTeamId?: string
+  isTwoLegged: boolean
+  legs: MatchLeg[]
+  status: MatchStatus
+  // Quién avanza. Separado del marcador: puede definirse por penales.
+  winnerTeamId?: string
+  isDraw: boolean
+  allowsPenalties: boolean
+  assignedConsole?: ConsoleType
+}
+
+// Fila de tabla de posiciones. Ya viene ordenada y con `rank` desde el back.
+export interface Standing {
+  teamId: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDifference: number
+  points: number
+  rank?: number
+}
+
+export interface TournamentTeam {
+  teamId: string
+  name: string
+  playerNames: string[]
+}
+
+export interface Matchday {
+  roundNumber: number
+  matches: Match[]
+}
+
+export interface LeagueStage {
+  doubleRound: boolean
+  matchdays: Matchday[]
+  standings: Standing[]
+  tiebreakMatches: Match[]
+}
+
+export interface Group {
+  name: string
+  teamIds: string[]
+  matches: Match[]
+  standings: Standing[]
+  tiebreakMatches: Match[]
+}
+
+export interface GroupStage {
+  groupSize: number
+  doubleRound: boolean
+  groups: Group[]
+  bestThirdPlaceSlots: number
+  qualifiedThirdPlaceTeamIds: string[]
+}
+
+export interface SwissParticipant {
+  teamId: string
+  wins: number
+  losses: number
+  isQualified: boolean
+  isEliminated: boolean
+  gameDifferential: number
+  // matchId del partido en el que el equipo selló su clasificación o
+  // eliminación (la 3ra victoria/derrota). Lo provee el back.
+  decidedInMatchId?: string
+}
+
+export interface SwissRound {
+  roundNumber: number
+  matches: Match[]
+}
+
+export interface SwissStage {
+  winsToQualify: number
+  lossesToEliminate: number
+  targetQualifiers: number
+  participants: SwissParticipant[]
+  rounds: SwissRound[]
+  playIn: Match[]
+  qualifiedTeamIds: string[]
+}
+
+export interface BracketRound {
+  roundNumber: number
+  name: string
+  matches: Match[]
+}
+
+export interface Bracket {
+  drawSize: number
+  rounds: BracketRound[]
+  isTwoLegged: boolean
+  hasThirdPlaceMatch: boolean
+  thirdPlaceMatch?: Match
+  championTeamId?: string
+  byeTeamIds: string[]
+  hasPreliminaryRound: boolean
+}
+
+export interface KnockoutStage {
+  bracket: Bracket
+}
+
+// Documento completo devuelto por GET /tournaments/:id. Distinto del
+// `Tournament` de arriba (forma devuelta al crear el torneo).
+export interface TournamentDetail {
+  _id: string
+  name: string
+  format: TournamentFormat
+  state: TournamentState
+  status: TournamentStatus
+  matchMode: MatchMode
+  consoleUnits: number
+  allowedConsoles: ConsoleType[]
+  teams: TournamentTeam[]
+  leagueStage?: LeagueStage
+  groupStage?: GroupStage
+  swissStage?: SwissStage
+  knockoutStage?: KnockoutStage
+  thirdPlaceMatch?: Match
+}
+
+export type MatchPhase =
+  | 'LEAGUE'
+  | 'GROUPS'
+  | 'SWISS'
+  | 'KNOCKOUTS'
+  | 'PLAY_IN'
+  | 'TIEBREAK'
+  | 'THIRD_PLACE'
+
+export interface UpcomingMatchTeam {
+  teamId: string
+  name: string
+  playerNames: string[]
+}
+
+export interface FirstLegResult {
+  homeGoals: number
+  awayGoals: number
+}
+
+// Ítem de GET /tournaments/:id/matches: próximos partidos jugables. Todos los
+// ítems devueltos son jugables en simultáneo (consolas distintas).
+export interface UpcomingMatch {
+  matchId: string
+  legNumber: 1 | 2
+  phase: MatchPhase
+  roundLabel: string
+  groupName?: string
+  homeTeam: UpcomingMatchTeam
+  awayTeam: UpcomingMatchTeam
+  assignedConsole: ConsoleType
+  allowsPenalties: boolean
+  // Solo presente en legNumber 2.
+  firstLegResult?: FirstLegResult
+}
+
+// Body de PATCH /tournaments/match/:matchId
+export interface MatchResultPayload {
+  homeGoals: number
+  awayGoals: number
+  penaltyWinnerTeamId?: string
+}
+
 // Steps del wizard de creación de torneo. `teamPlayers` solo se visita cuando
 // el método de asignación elegido es manual.
 export type NewTournamentStep =

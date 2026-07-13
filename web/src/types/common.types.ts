@@ -20,6 +20,8 @@ export type ThemeMode = 'light' | 'dark'
 export type ButtonVariant = 'primary' | 'secondary' | 'text'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
+export type SnackbarVariant = 'success' | 'error'
+
 export interface SelectOption<T extends string = string> {
   value: T
   label: string

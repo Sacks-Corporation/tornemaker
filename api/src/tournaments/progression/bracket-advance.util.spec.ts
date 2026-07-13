@@ -1,0 +1,134 @@
+import { Bracket } from '../schemas/common/bracket.schema';
+import { Match } from '../schemas/common/match.schema';
+import { MatchStatus } from '../schemas/common/match-status.enum';
+import {
+  advanceWinnerInBracket,
+  isBracketComplete,
+} from './bracket-advance.util';
+
+function placeholder(matchId: string, home?: string, away?: string): Match {
+  return {
+    matchId,
+    homeTeamId: home,
+    awayTeamId: away,
+    isTwoLegged: false,
+    legs: [],
+    status: MatchStatus.SCHEDULED,
+    isDraw: false,
+    allowsPenalties: true,
+  };
+}
+
+function fourTeamBracket(hasThirdPlaceMatch = false): Bracket {
+  return {
+    drawSize: 4,
+    byeTeamIds: [],
+    hasPreliminaryRound: false,
+    isTwoLegged: false,
+    hasThirdPlaceMatch,
+    thirdPlaceMatch: hasThirdPlaceMatch ? placeholder('3rd') : undefined,
+    rounds: [
+      {
+        roundNumber: 0,
+        name: 'Semifinales',
+        matches: [placeholder('sf1', 'A', 'B'), placeholder('sf2', 'C', 'D')],
+      },
+      { roundNumber: 1, name: 'Final', matches: [placeholder('final')] },
+    ],
+  };
+}
+
+describe('advanceWinnerInBracket — standard rounds', () => {
+  it('feeds match 0 winner into the final home slot', () => {
+    const bracket = fourTeamBracket();
+    advanceWinnerInBracket(bracket, 0, 0, 'A', 'B');
+    expect(bracket.rounds[1].matches[0].homeTeamId).toBe('A');
+  });
+
+  it('feeds match 1 winner into the final away slot', () => {
+    const bracket = fourTeamBracket();
+    advanceWinnerInBracket(bracket, 0, 1, 'D', 'C');
+    expect(bracket.rounds[1].matches[0].awayTeamId).toBe('D');
+  });
+
+  it('sends both semifinal losers into the third-place match', () => {
+    const bracket = fourTeamBracket(true);
+    advanceWinnerInBracket(bracket, 0, 0, 'A', 'B');
+    advanceWinnerInBracket(bracket, 0, 1, 'C', 'D');
+    expect(bracket.thirdPlaceMatch?.homeTeamId).toBe('B');
+    expect(bracket.thirdPlaceMatch?.awayTeamId).toBe('D');
+  });
+
+  it('records the champion once the final is fed a winner', () => {
+    const bracket = fourTeamBracket();
+    advanceWinnerInBracket(bracket, 0, 0, 'A', 'B');
+    advanceWinnerInBracket(bracket, 0, 1, 'C', 'D');
+    advanceWinnerInBracket(bracket, 1, 0, 'A', 'C');
+    expect(bracket.championTeamId).toBe('A');
+  });
+});
+
+describe('advanceWinnerInBracket — preliminary round feed (identity mapping into away slot)', () => {
+  it('feeds a preliminary winner into the away slot of the same-index main-round match', () => {
+    const bracket: Bracket = {
+      drawSize: 8,
+      byeTeamIds: ['bye1', 'bye2'],
+      hasPreliminaryRound: true,
+      isTwoLegged: false,
+      hasThirdPlaceMatch: false,
+      rounds: [
+        {
+          roundNumber: 0,
+          name: 'Ronda Preliminar',
+          matches: [
+            placeholder('p1', 'p1a', 'p1b'),
+            placeholder('p2', 'p2a', 'p2b'),
+          ],
+        },
+        {
+          roundNumber: 1,
+          name: 'Semifinales',
+          matches: [
+            placeholder('sf1', 'bye1', undefined),
+            placeholder('sf2', 'bye2', undefined),
+          ],
+        },
+        { roundNumber: 2, name: 'Final', matches: [placeholder('final')] },
+      ],
+    };
+
+    advanceWinnerInBracket(bracket, 0, 0, 'p1a');
+    advanceWinnerInBracket(bracket, 0, 1, 'p2b');
+
+    expect(bracket.rounds[1].matches[0]).toMatchObject({
+      homeTeamId: 'bye1',
+      awayTeamId: 'p1a',
+    });
+    expect(bracket.rounds[1].matches[1]).toMatchObject({
+      homeTeamId: 'bye2',
+      awayTeamId: 'p2b',
+    });
+  });
+});
+
+describe('isBracketComplete', () => {
+  it('is false until the final is played', () => {
+    const bracket = fourTeamBracket();
+    expect(isBracketComplete(bracket)).toBe(false);
+  });
+
+  it('is true once the final is played and there is no third-place match', () => {
+    const bracket = fourTeamBracket();
+    bracket.rounds[1].matches[0].status = MatchStatus.PLAYED;
+    expect(isBracketComplete(bracket)).toBe(true);
+  });
+
+  it('requires the third-place match to also be played when it exists', () => {
+    const bracket = fourTeamBracket(true);
+    bracket.rounds[1].matches[0].status = MatchStatus.PLAYED;
+    expect(isBracketComplete(bracket)).toBe(false);
+
+    bracket.thirdPlaceMatch!.status = MatchStatus.PLAYED;
+    expect(isBracketComplete(bracket)).toBe(true);
+  });
+});

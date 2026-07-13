@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
+import { RecordMatchResultDto } from './dto/record-match-result.dto';
 import {
   FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED,
   GROUP_SIZE_OPTIONS_BY_TEAM_COUNT,
@@ -12,8 +17,26 @@ import {
 } from './dto/format-rules';
 import { DrawService } from './draw/draw.service';
 import { DrawTeamInput } from './draw/types';
+import { MatchProgressionService } from './progression/match-progression.service';
+import {
+  computePlayableMatches,
+  PlayableMatchItem,
+} from './progression/playable-matches.util';
+import {
+  serializeTournament,
+  SerializedTournament,
+} from './progression/serialize';
 import { TournamentFormat } from './schemas/common/tournament-format.enum';
+import { TournamentState } from './schemas/common/tournament-state.enum';
 import { Tournament, TournamentDocument } from './schemas/tournament.schema';
+
+/** Initial `Tournament.state` derived from `format` — see tournament-state.enum.ts. */
+const INITIAL_STATE_BY_FORMAT: Record<TournamentFormat, TournamentState> = {
+  [TournamentFormat.LEAGUE]: TournamentState.LEAGUE,
+  [TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION]: TournamentState.GROUPS,
+  [TournamentFormat.SWISS_PLUS_ELIMINATION]: TournamentState.SWISS,
+  [TournamentFormat.SINGLE_ELIMINATION]: TournamentState.KNOCKOUTS,
+};
 
 @Injectable()
 export class TournamentsService {
@@ -21,6 +44,7 @@ export class TournamentsService {
     @InjectModel(Tournament.name)
     private readonly tournamentModel: Model<TournamentDocument>,
     private readonly drawService: DrawService,
+    private readonly progressionService: MatchProgressionService,
   ) {}
 
   async create(
@@ -52,6 +76,7 @@ export class TournamentsService {
       ownerId: new Types.ObjectId(ownerId),
       name: dto.name,
       format: dto.format,
+      state: INITIAL_STATE_BY_FORMAT[dto.format],
       matchMode: dto.matchMode,
       consoleUnits: dto.consoles,
       allowedConsoles,
@@ -64,6 +89,103 @@ export class TournamentsService {
     });
 
     return created.save();
+  }
+
+  /**
+   * GET /tournaments/:id — returns the tournament exactly as persisted
+   * (already fully computed/ranked by the progression engine on every
+   * PATCH), scoped to its owner.
+   */
+  async findOneForOwner(
+    ownerId: string,
+    id: string,
+  ): Promise<SerializedTournament> {
+    const tournament = await this.findOwnedTournamentOrThrow(ownerId, id);
+    return serializeTournament(tournament);
+  }
+
+  /**
+   * GET /tournaments/:id/matches — the lightweight "what can be played
+   * right now" view (see progression/playable-matches.util.ts). Persists
+   * any newly-assigned console before returning, so repeating the request
+   * is idempotent.
+   */
+  async getPlayableMatches(
+    ownerId: string,
+    id: string,
+  ): Promise<PlayableMatchItem[]> {
+    const tournament = await this.findOwnedTournamentOrThrow(ownerId, id);
+    const { items, hasNewAssignments } = computePlayableMatches(tournament);
+    if (hasNewAssignments) {
+      await tournament.save();
+    }
+    return items;
+  }
+
+  /**
+   * PATCH /tournaments/match/:matchId — records a single leg's result and
+   * runs the progression engine (standings, tiebreaks, bracket advancement,
+   * Swiss pairing, stage transitions — see MatchProgressionService),
+   * scoped to the owner via the same $or-over-every-embedded-path query
+   * used for the lookup.
+   */
+  async recordMatchResult(
+    ownerId: string,
+    matchId: string,
+    dto: RecordMatchResultDto,
+  ): Promise<SerializedTournament> {
+    const tournament = await this.findOwnedTournamentContainingMatch(
+      ownerId,
+      matchId,
+    );
+    this.progressionService.recordResult(tournament, matchId, dto);
+    await tournament.save();
+    return serializeTournament(tournament);
+  }
+
+  // --- Lookup helpers ------------------------------------------------
+
+  private async findOwnedTournamentOrThrow(
+    ownerId: string,
+    id: string,
+  ): Promise<TournamentDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException(`Tournament ${id} not found`);
+    }
+    const tournament = await this.tournamentModel.findOne({
+      _id: id,
+      ownerId: new Types.ObjectId(ownerId),
+    });
+    if (!tournament) {
+      throw new NotFoundException(`Tournament ${id} not found`);
+    }
+    return tournament;
+  }
+
+  private async findOwnedTournamentContainingMatch(
+    ownerId: string,
+    matchId: string,
+  ): Promise<TournamentDocument> {
+    const tournament = await this.tournamentModel.findOne({
+      ownerId: new Types.ObjectId(ownerId),
+      $or: [
+        { 'leagueStage.matchdays.matches.matchId': matchId },
+        { 'leagueStage.tiebreakMatches.matchId': matchId },
+        { 'groupStage.groups.matches.matchId': matchId },
+        { 'groupStage.groups.tiebreakMatches.matchId': matchId },
+        { 'swissStage.rounds.matches.matchId': matchId },
+        { 'swissStage.playIn.matchId': matchId },
+        { 'knockoutStage.bracket.rounds.matches.matchId': matchId },
+        { 'knockoutStage.bracket.thirdPlaceMatch.matchId': matchId },
+        { 'thirdPlaceMatch.matchId': matchId },
+      ],
+    });
+    if (!tournament) {
+      throw new NotFoundException(
+        `Match ${matchId} was not found in any of your tournaments`,
+      );
+    }
+    return tournament;
   }
 
   // --- Validation helpers (cross-field rules, hence not in the DTO) ------

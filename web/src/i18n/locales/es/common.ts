@@ -31,6 +31,9 @@ const common = {
   modal: {
     close: 'Cerrar',
   },
+  snackbar: {
+    close: 'Cerrar',
+  },
 } as const
 
 export default common

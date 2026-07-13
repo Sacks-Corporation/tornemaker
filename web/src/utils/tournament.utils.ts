@@ -6,11 +6,16 @@ import type {
   AssignmentMethod,
   ConsoleType,
   CreateTournamentPayload,
+  Match,
   MatchMode,
+  MatchPhase,
   NewTournamentStep,
   NewTournamentWizardData,
   TeamAssignment,
+  TournamentDetail,
   TournamentFormat,
+  TournamentTeam,
+  UpcomingMatch,
 } from '../types/tournament.types'
 
 // Cantidades de equipos válidas por formato.
@@ -205,5 +210,89 @@ export const buildTournamentPayload = (
         players: getFilledNames(assignment.players),
       }))
       .filter((assignment) => assignment.players.length > 0),
+  }
+}
+
+// --------------------------------------------------------------------------
+// Helpers de presentación para la visualización del torneo y la carga de
+// resultados. Ninguno de estos calcula lógica de torneo (posiciones, avance,
+// clasificados): son lookups de datos ya devueltos por el back o cálculos
+// sobre el formulario de carga (conveniencia visual, el back valida igual).
+
+// Lookup de equipo por id, armado a partir de `teams` del torneo. Se usa para
+// resolver nombres/jugadores en toda la pantalla (no es "calcular", es lookup
+// de presentación).
+export const buildTeamMap = (teams: TournamentTeam[]): Map<string, TournamentTeam> =>
+  new Map(teams.map((team) => [team.teamId, team]))
+
+export const getTeamName = (
+  teamMap: Map<string, TournamentTeam>,
+  teamId: string | undefined,
+  placeholder: string,
+): string => {
+  if (!teamId) return placeholder
+  return teamMap.get(teamId)?.name ?? placeholder
+}
+
+export const getTeamPlayerNames = (
+  teamMap: Map<string, TournamentTeam>,
+  teamId: string | undefined,
+): string[] => {
+  if (!teamId) return []
+  return teamMap.get(teamId)?.playerNames ?? []
+}
+
+// Determina si el resultado ingresado en el modal de carga está empatado y
+// por lo tanto habilita el selector de penales (solo si `allowsPenalties`).
+// legNumber 1 -> empate simple. legNumber 2 -> empate en el global ida+vuelta.
+export const isTiedResult = (
+  match: Pick<UpcomingMatch, 'legNumber' | 'firstLegResult'>,
+  homeGoals: number,
+  awayGoals: number,
+): boolean => {
+  if (match.legNumber === 2 && match.firstLegResult) {
+    const aggregateHome = match.firstLegResult.homeGoals + homeGoals
+    const aggregateAway = match.firstLegResult.awayGoals + awayGoals
+    return aggregateHome === aggregateAway
+  }
+  return homeGoals === awayGoals
+}
+
+// Global ida+vuelta a mostrar en el modal como conveniencia visual (única
+// suma permitida en el front; el back valida el resultado igual).
+export const getAggregateScore = (
+  firstLegResult: { homeGoals: number; awayGoals: number } | undefined,
+  homeGoals: number,
+  awayGoals: number,
+): { homeGoals: number; awayGoals: number } | null => {
+  if (!firstLegResult) return null
+  return {
+    homeGoals: firstLegResult.homeGoals + homeGoals,
+    awayGoals: firstLegResult.awayGoals + awayGoals,
+  }
+}
+
+// Formatea el marcador de un partido ya jugado (uno o más legs). Es
+// formateo de texto puro, no cálculo de lógica de torneo.
+export const formatMatchScoreLabel = (match: Pick<Match, 'legs' | 'status'>): string => {
+  if (match.status === 'SCHEDULED' || match.legs.length === 0) return '-'
+  return match.legs.map((leg) => `${leg.homeGoals}-${leg.awayGoals}`).join(' / ')
+}
+
+// Lookup del flag "ida y vuelta" de la fase a la que pertenece un próximo
+// partido (para decidir si corresponde mostrar la etiqueta "Ida" en el
+// legNumber 1; en legNumber 2 siempre corresponde "Vuelta"). Lee un flag ya
+// provisto por el back, no calcula nada del torneo.
+export const isTwoLeggedPhase = (tournament: TournamentDetail, phase: MatchPhase): boolean => {
+  switch (phase) {
+    case 'LEAGUE':
+      return tournament.leagueStage?.doubleRound ?? false
+    case 'GROUPS':
+      return tournament.groupStage?.doubleRound ?? false
+    case 'KNOCKOUTS':
+    case 'THIRD_PLACE':
+      return tournament.knockoutStage?.bracket.isTwoLegged ?? false
+    default:
+      return false
   }
 }

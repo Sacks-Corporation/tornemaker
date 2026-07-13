@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { Match } from '../schemas/common/match.schema';
 import { Standing } from '../schemas/common/standing.schema';
@@ -5,20 +6,19 @@ import { LeagueMatchday, LeagueStage } from '../schemas/league.schema';
 import { circleMethodRounds } from './round-robin.util';
 import { SeededTeam } from './types';
 
-function buildMatch(
-  roundNumber: number,
-  indexInRound: number,
-  home: string,
-  away: string,
-): Match {
+/** League fixtures are always draw-eligible — see Match.allowsPenalties doc. */
+const LEAGUE_ALLOWS_PENALTIES = false;
+
+function buildMatch(home: string, away: string): Match {
   return {
-    matchId: `LEAGUE-R${roundNumber}-M${indexInRound + 1}`,
+    matchId: new Types.ObjectId().toString(),
     homeTeamId: home,
     awayTeamId: away,
     isTwoLegged: false,
     legs: [],
     status: MatchStatus.SCHEDULED,
     isDraw: false,
+    allowsPenalties: LEAGUE_ALLOWS_PENALTIES,
   };
 }
 
@@ -41,9 +41,7 @@ export function buildLeagueStage(
   for (const pairs of firstLegRounds) {
     matchdays.push({
       roundNumber,
-      matches: pairs.map(([home, away], i) =>
-        buildMatch(roundNumber, i, home, away),
-      ),
+      matches: pairs.map(([home, away]) => buildMatch(home, away)),
     });
     roundNumber++;
   }
@@ -53,9 +51,7 @@ export function buildLeagueStage(
       matchdays.push({
         roundNumber,
         // Second leg: same pairing, localía inverted, separate fixtures.
-        matches: pairs.map(([home, away], i) =>
-          buildMatch(roundNumber, i, away, home),
-        ),
+        matches: pairs.map(([home, away]) => buildMatch(away, home)),
       });
       roundNumber++;
     }
@@ -80,5 +76,6 @@ export function buildLeagueStage(
     pointsForLoss: 0,
     matchdays,
     standings,
+    tiebreakMatches: [],
   };
 }

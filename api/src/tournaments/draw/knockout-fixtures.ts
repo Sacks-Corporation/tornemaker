@@ -1,9 +1,18 @@
+import { Types } from 'mongoose';
 import { nextPowerOfTwo } from '../dto/format-rules';
 import { Bracket, BracketRound } from '../schemas/common/bracket.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { Match } from '../schemas/common/match.schema';
 import { KnockoutStage } from '../schemas/knockout-stage.schema';
 import { SeededTeam } from './types';
+
+/** Every knockout match (main bracket, preliminary round, third place) may
+ *  go to penalties when level — see Match.allowsPenalties doc. */
+const KNOCKOUT_ALLOWS_PENALTIES = true;
+
+function newMatchId(): string {
+  return new Types.ObjectId().toString();
+}
 
 /** Human (Spanish) round name, keyed by how many teams enter that round. */
 function roundName(teamsInRound: number): string {
@@ -23,13 +32,14 @@ function roundName(teamsInRound: number): string {
   }
 }
 
-function placeholderMatch(matchId: string, isTwoLegged: boolean): Match {
+function placeholderMatch(isTwoLegged: boolean): Match {
   return {
-    matchId,
+    matchId: newMatchId(),
     isTwoLegged,
     legs: [],
     status: MatchStatus.SCHEDULED,
     isDraw: false,
+    allowsPenalties: KNOCKOUT_ALLOWS_PENALTIES,
   };
 }
 
@@ -66,13 +76,14 @@ export function buildKnockoutStage(
     const prelimMatches: Match[] = [];
     for (let i = 0; i < prelimTeamIds.length; i += 2) {
       prelimMatches.push({
-        matchId: `KO-R${roundIndex}-M${prelimMatches.length + 1}`,
+        matchId: newMatchId(),
         homeTeamId: prelimTeamIds[i],
         awayTeamId: prelimTeamIds[i + 1],
         isTwoLegged: twoLegged,
         legs: [],
         status: MatchStatus.SCHEDULED,
         isDraw: false,
+        allowsPenalties: KNOCKOUT_ALLOWS_PENALTIES,
       });
     }
     rounds.push({
@@ -111,14 +122,15 @@ export function buildKnockoutStage(
     }
   }
 
-  const firstMainMatches: Match[] = firstMainRoundSlots.map((slot, i) => ({
-    matchId: `KO-R${roundIndex}-M${i + 1}`,
+  const firstMainMatches: Match[] = firstMainRoundSlots.map((slot) => ({
+    matchId: newMatchId(),
     homeTeamId: slot.home,
     awayTeamId: slot.away,
     isTwoLegged: twoLegged,
     legs: [],
     status: MatchStatus.SCHEDULED,
     isDraw: false,
+    allowsPenalties: KNOCKOUT_ALLOWS_PENALTIES,
   }));
   rounds.push({
     roundNumber: roundIndex,
@@ -132,8 +144,8 @@ export function buildKnockoutStage(
   while (teamsInRound > 2) {
     const nextTeamsInRound = teamsInRound / 2;
     const matchCount = nextTeamsInRound / 2;
-    const matches: Match[] = Array.from({ length: matchCount }, (_, i) =>
-      placeholderMatch(`KO-R${roundIndex}-M${i + 1}`, twoLegged),
+    const matches: Match[] = Array.from({ length: matchCount }, () =>
+      placeholderMatch(twoLegged),
     );
     rounds.push({
       roundNumber: roundIndex,
@@ -152,9 +164,7 @@ export function buildKnockoutStage(
     isTwoLegged: twoLegged,
     hasThirdPlaceMatch: thirdPlaceMatch,
     // The 3rd-place decider is always single-match, even in a two-legged bracket.
-    thirdPlaceMatch: thirdPlaceMatch
-      ? placeholderMatch('KO-3RD-M1', false)
-      : undefined,
+    thirdPlaceMatch: thirdPlaceMatch ? placeholderMatch(false) : undefined,
   };
 
   return { bracket };

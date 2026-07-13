@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { GameConsole } from './console.enum';
 import { MatchResult, MatchResultSchema } from './match-result.schema';
 import { MatchStatus } from './match-status.enum';
 
@@ -27,7 +28,17 @@ import { MatchStatus } from './match-status.enum';
  */
 @Schema({ _id: false })
 export class Match {
-  /** Stable local id for this match/tie, unique within the tournament. */
+  /**
+   * Stable id for this match/tie. Generated as `new Types.ObjectId().toString()`
+   * at fixture-generation time (draw/*, and later by the progression engine
+   * for matches created after the draw: Swiss rounds/play-in, knockout
+   * brackets built from group/Swiss qualifiers, table tiebreaks). IDs are
+   * unique GLOBALLY (not just within the tournament) so `PATCH
+   * /tournaments/match/:matchId` can look a match up without knowing which
+   * tournament/phase it belongs to. The match's structural position (phase,
+   * round/group, array order) is what conveys "where" it is — never parsed
+   * out of the id's format.
+   */
   @Prop({ required: true })
   matchId: string;
 
@@ -61,6 +72,31 @@ export class Match {
   /** True when the tie ended in a draw and draws are allowed to stand (league). */
   @Prop({ default: false })
   isDraw: boolean;
+
+  /**
+   * Whether THIS tie may be decided by penalties when scores are level.
+   * Set once, at generation time, per the format/phase it belongs to:
+   *   - false: league fixtures, group-stage fixtures, and league/group
+   *     tiebreak matches (all of these are draw-eligible — league rules).
+   *   - true: Swiss matches, knockout matches (incl. preliminary round),
+   *     play-in matches, third-place matches.
+   * For a two-legged knockout tie, `allowsPenalties=true` means penalties
+   * are only ever taken on the SECOND leg, if the aggregate score is level
+   * after both legs — the first leg can always end level with no penalties,
+   * it's simply carried into the aggregate.
+   */
+  @Prop({ default: false })
+  allowsPenalties: boolean;
+
+  /**
+   * Console physical unit type assigned to this match once it becomes
+   * playable (both teams known). Assigned by the backend — round-robin over
+   * `Tournament.consoleUnits` — either when `GET /tournaments/:id/matches`
+   * first surfaces it as playable, or (as a fallback) by the result PATCH
+   * itself if it was somehow never assigned. Once set it never changes.
+   */
+  @Prop({ type: String, enum: GameConsole })
+  assignedConsole?: GameConsole;
 
   @Prop()
   scheduledAt?: Date;

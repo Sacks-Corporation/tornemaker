@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { DrawService } from './draw/draw.service';
+import { MatchProgressionService } from './progression/match-progression.service';
 import { Tournament, TournamentSchema } from './schemas/tournament.schema';
 import { TournamentsController } from './tournaments.controller';
 import { TournamentsService } from './tournaments.service';
@@ -23,6 +24,6 @@ import { TournamentsService } from './tournaments.service';
     ]),
   ],
   controllers: [TournamentsController],
-  providers: [TournamentsService, DrawService],
+  providers: [TournamentsService, DrawService, MatchProgressionService],
 })
 export class TournamentsModule {}

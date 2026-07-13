@@ -83,16 +83,19 @@ export class DrawService {
             options.twoLegged,
           ),
           standaloneThirdPlaceMatch: options.thirdPlaceMatch
-            ? this.buildThirdPlacePlaceholder('GROUP-3RD')
+            ? this.buildThirdPlacePlaceholder()
             : undefined,
         };
 
       case TournamentFormat.SWISS_PLUS_ELIMINATION:
         return {
           teams,
-          swissStage: buildSwissStage(seededTeams),
+          // Swiss matches are always single-leg; `options.twoLegged` only
+          // governs the knockout bracket built once the Swiss stage
+          // finishes (see SwissStage.knockoutTwoLegged doc).
+          swissStage: buildSwissStage(seededTeams, options.twoLegged),
           standaloneThirdPlaceMatch: options.thirdPlaceMatch
-            ? this.buildThirdPlacePlaceholder('SWISS-3RD')
+            ? this.buildThirdPlacePlaceholder()
             : undefined,
         };
 
@@ -125,13 +128,15 @@ export class DrawService {
     });
   }
 
-  private buildThirdPlacePlaceholder(prefix: string): Match {
+  private buildThirdPlacePlaceholder(): Match {
     return {
-      matchId: `${prefix}-M1`,
+      matchId: new Types.ObjectId().toString(),
       isTwoLegged: false,
       legs: [],
       status: MatchStatus.SCHEDULED,
       isDraw: false,
+      // Third-place matches must always produce a winner.
+      allowsPenalties: true,
     };
   }
 }

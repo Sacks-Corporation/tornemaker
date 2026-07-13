@@ -3,6 +3,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { GameConsole } from './common/console.enum';
 import { MatchMode } from './common/match-mode.enum';
 import { TournamentFormat } from './common/tournament-format.enum';
+import { TournamentState } from './common/tournament-state.enum';
 import { Team, TeamSchema } from './common/team.schema';
 import { KnockoutStage, KnockoutStageSchema } from './knockout-stage.schema';
 import { GroupStage, GroupStageSchema } from './group-stage.schema';
@@ -87,6 +88,15 @@ export class Tournament {
 
   @Prop({ type: String, enum: TournamentFormat, required: true })
   format: TournamentFormat;
+
+  /**
+   * Coarse-grained lifecycle state, derived from `format` at creation time
+   * and transitioned exclusively by the progression engine that runs inside
+   * `PATCH /tournaments/match/:matchId` — see tournament-state.enum.ts for
+   * the full transition table. Never inferred/recomputed by the frontend.
+   */
+  @Prop({ type: String, enum: TournamentState, required: true })
+  state: TournamentState;
 
   /** How many real players share each team (1v1, 2v2, 3v3). */
   @Prop({ type: String, enum: MatchMode, required: true })

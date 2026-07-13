@@ -51,6 +51,14 @@ export class LeagueStage {
 
   @Prop({ type: [StandingSchema], default: [] })
   standings: Standing[];
+
+  /**
+   * Extra matches played among teams tied in the final table (once every
+   * matchday is complete) when the tie affects a final-table position — see
+   * the tie-break rule documented on `Standing`. Empty until/unless needed.
+   */
+  @Prop({ type: [MatchSchema], default: [] })
+  tiebreakMatches: Match[];
 }
 
 export const LeagueStageSchema = SchemaFactory.createForClass(LeagueStage);

@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { computeBestThirdPlaceSlots } from '../dto/format-rules';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { Match } from '../schemas/common/match.schema';
@@ -8,25 +9,29 @@ import { SeededTeam } from './types';
 
 const GROUP_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-function buildGroupMatches(
-  letter: string,
-  ids: string[],
-  twoLegged: boolean,
-): Match[] {
+/** Group-stage fixtures are draw-eligible (league-style rules) — see
+ *  Match.allowsPenalties doc. */
+const GROUP_ALLOWS_PENALTIES = false;
+
+function newMatchId(): string {
+  return new Types.ObjectId().toString();
+}
+
+function buildGroupMatches(ids: string[], twoLegged: boolean): Match[] {
   const rounds = circleMethodRounds(ids);
   const matches: Match[] = [];
-  let counter = 1;
 
   for (const pairs of rounds) {
     for (const [home, away] of pairs) {
       matches.push({
-        matchId: `GROUP-${letter}-M${counter++}`,
+        matchId: newMatchId(),
         homeTeamId: home,
         awayTeamId: away,
         isTwoLegged: false,
         legs: [],
         status: MatchStatus.SCHEDULED,
         isDraw: false,
+        allowsPenalties: GROUP_ALLOWS_PENALTIES,
       });
     }
   }
@@ -35,13 +40,14 @@ function buildGroupMatches(
     for (const pairs of rounds) {
       for (const [home, away] of pairs) {
         matches.push({
-          matchId: `GROUP-${letter}-M${counter++}`,
+          matchId: newMatchId(),
           homeTeamId: away,
           awayTeamId: home,
           isTwoLegged: false,
           legs: [],
           status: MatchStatus.SCHEDULED,
           isDraw: false,
+          allowsPenalties: GROUP_ALLOWS_PENALTIES,
         });
       }
     }
@@ -86,8 +92,9 @@ export function buildGroupStage(
     groups.push({
       name: `Grupo ${letter}`,
       teamIds: ids,
-      matches: buildGroupMatches(letter, ids, twoLegged),
+      matches: buildGroupMatches(ids, twoLegged),
       standings,
+      tiebreakMatches: [],
     });
   }
 

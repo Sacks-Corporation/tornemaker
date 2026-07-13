@@ -125,6 +125,23 @@ export class SwissStage {
   /** Final ranked list of local teamIds that advance to the knockout stage. */
   @Prop({ type: [String], default: [] })
   qualifiedTeamIds: string[];
+
+  /**
+   * Whether the knockout bracket built ONCE THIS SWISS STAGE FINISHES should
+   * be two-legged. Set at tournament-creation time from
+   * `CreateTournamentDto.twoLegged` (see draw/swiss-fixtures.ts /
+   * draw.service.ts) and consumed later by the progression engine when it
+   * builds `Tournament.knockoutStage` (see
+   * progression/match-progression.service.ts).
+   *
+   * This does NOT affect the Swiss stage's own matches (`rounds`/`playIn`),
+   * which are ALWAYS single-leg — a Swiss match must always produce a
+   * winner in one leg (escalating to penalties if needed, see
+   * `Match.allowsPenalties`). It only controls the follow-up bracket's
+   * `Bracket.isTwoLegged`.
+   */
+  @Prop({ default: false })
+  knockoutTwoLegged: boolean;
 }
 
 export const SwissStageSchema = SchemaFactory.createForClass(SwissStage);

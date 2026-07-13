@@ -57,6 +57,15 @@ export class Group {
 
   @Prop({ type: [StandingSchema], default: [] })
   standings: Standing[];
+
+  /**
+   * Extra matches played among teams tied within this group (once every
+   * group match is complete) when the tie affects the group's qualification
+   * boundary — see the tie-break rule documented on `Standing`. Empty
+   * until/unless needed.
+   */
+  @Prop({ type: [MatchSchema], default: [] })
+  tiebreakMatches: Match[];
 }
 
 export const GroupSchema = SchemaFactory.createForClass(Group);
