@@ -43,7 +43,12 @@ function TournamentPageContainer() {
   const tournament = tournamentQuery.data
   const teamMap = useMemo(() => buildTeamMap(tournament?.teams ?? []), [tournament])
 
-  const isLoading = tournamentQuery.isLoading || upcomingMatchesQuery.isLoading
+  // Solo el torneo en sí bloquea el render de toda la pantalla (skeleton de
+  // página completa). El fetch de próximos partidos puede seguir en vuelo una
+  // vez que el torneo ya cargó: en ese caso la barra se muestra igual, pero
+  // con su propio estado de carga (skeleton de cards), en vez de tapar toda
+  // la pantalla de nuevo.
+  const isLoading = tournamentQuery.isLoading
   const isError = tournamentQuery.isError || upcomingMatchesQuery.isError
 
   // Tab por defecto según `state` (nunca inferido del contenido de las fases).
@@ -166,6 +171,7 @@ function TournamentPageContainer() {
     <UpcomingMatchesBar
       tournament={tournament}
       upcomingMatches={upcomingMatchesQuery.data ?? []}
+      isLoadingMatches={upcomingMatchesQuery.isLoading}
       teamMap={teamMap}
       onSelectMatch={handleSelectMatch}
       onResetClick={handleResetClick}

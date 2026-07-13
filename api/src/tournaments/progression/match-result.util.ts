@@ -1,5 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchResult } from '../schemas/common/match-result.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
@@ -40,7 +39,7 @@ export interface RecordResultOutcome {
 export function recordMatchResult(
   match: Match,
   input: RecordResultInput,
-  assignedConsole: GameConsole,
+  assignedConsole: string,
 ): RecordResultOutcome {
   if (!match.homeTeamId || !match.awayTeamId) {
     throw new BadRequestException(

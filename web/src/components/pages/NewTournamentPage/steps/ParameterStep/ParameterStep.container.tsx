@@ -2,10 +2,8 @@ import { useTranslation } from 'react-i18next'
 import ParameterStep from './ParameterStep'
 import type { NewTournamentWizard } from '../../../../../hooks/tournaments/useNewTournamentWizard'
 import type { SelectOption, RadioOption } from '../../../../../types/common.types'
-import type { ConsoleType, MatchMode } from '../../../../../types/tournament.types'
+import type { ConsoleCode, MatchModeCode } from '../../../../../types/tournament.types'
 
-const MATCH_MODES: MatchMode[] = ['1v1', '2v2', '3v3']
-const CONSOLE_TYPES: ConsoleType[] = ['PLAY_2', 'PLAY_3', 'PLAY_4', 'PLAY_5']
 const CONSOLE_COUNT_OPTIONS = Array.from({ length: 20 }, (_, index) => index + 1)
 
 export interface ParameterStepContainerProps {
@@ -37,9 +35,11 @@ function ParameterStepContainer({ wizard, currentStep, totalSteps }: ParameterSt
     { value: 'no', label: t('tournament.yesNo.no') },
   ]
 
-  const matchModeOptions: RadioOption<MatchMode>[] = MATCH_MODES.map((mode) => ({
-    value: mode,
-    label: t(`tournament.matchModes.${mode}`),
+  // Las opciones de modalidad y de tipo de consola salen del catálogo
+  // dinámico (label ya resuelto por el back), no de i18n.
+  const matchModeOptions: RadioOption<MatchModeCode>[] = wizard.matchModes.map((mode) => ({
+    value: mode.code,
+    label: mode.label,
   }))
 
   const consoleCountOptions: SelectOption[] = CONSOLE_COUNT_OPTIONS.map((value) => ({
@@ -47,9 +47,9 @@ function ParameterStepContainer({ wizard, currentStep, totalSteps }: ParameterSt
     label: String(value),
   }))
 
-  const consoleTypeOptions: SelectOption<ConsoleType>[] = CONSOLE_TYPES.map((value) => ({
-    value,
-    label: t(`tournament.consoleTypes.${value}`),
+  const consoleTypeOptions: SelectOption<ConsoleCode>[] = wizard.consoles.map((item) => ({
+    value: item.code,
+    label: item.label,
   }))
 
   const nextDisabled =
@@ -61,7 +61,10 @@ function ParameterStepContainer({ wizard, currentStep, totalSteps }: ParameterSt
     data.matchMode === null ||
     data.consoleCount === null ||
     data.consoleCount < 1 ||
-    data.consoles.length !== data.consoleCount
+    data.consoles.length !== data.consoleCount ||
+    data.consoles.some((consoleCode) => consoleCode === '') ||
+    wizard.isLoadingFormatRules ||
+    wizard.isLoadingConsoles
 
   return (
     <ParameterStep
@@ -71,6 +74,7 @@ function ParameterStepContainer({ wizard, currentStep, totalSteps }: ParameterSt
       teamCountOptions={teamCountOptions}
       teamCount={data.teamCount !== null ? String(data.teamCount) : null}
       onTeamCountChange={(value) => wizard.setTeamCount(Number(value))}
+      isLoadingTeamCount={wizard.isLoadingFormatRules}
       showGroupSize={showGroupSize}
       groupSizeOptions={groupSizeOptions}
       groupSize={data.groupSize !== null ? String(data.groupSize) : null}
@@ -84,12 +88,14 @@ function ParameterStepContainer({ wizard, currentStep, totalSteps }: ParameterSt
       matchModeOptions={matchModeOptions}
       matchMode={data.matchMode}
       onMatchModeChange={wizard.setMatchMode}
+      isLoadingMatchMode={wizard.isLoadingMatchModes}
       consoleCountOptions={consoleCountOptions}
       consoleCount={data.consoleCount !== null ? String(data.consoleCount) : null}
       onConsoleCountChange={(value) => wizard.setConsoleCount(Number(value))}
       consoles={data.consoles}
       consoleTypeOptions={consoleTypeOptions}
       onConsoleTypeChange={wizard.setConsoleTypeAt}
+      isLoadingConsoleType={wizard.isLoadingConsoles}
       currentStep={currentStep}
       totalSteps={totalSteps}
       onBack={wizard.goBack}

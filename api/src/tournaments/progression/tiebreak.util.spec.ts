@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import {
@@ -21,7 +20,7 @@ function playedMatch(
     isTwoLegged: false,
     legs: [
       {
-        console: GameConsole.PLAY_5,
+        console: 'PLAY_5',
         homeGoals: hg,
         awayGoals: ag,
         wentToExtraTime: false,
@@ -119,7 +118,7 @@ describe('reconcileTieGroup', () => {
     const pool: Match[] = [];
     reconcileTieGroup(['A', 'B'], pool, seeds);
     pool[0].legs.push({
-      console: GameConsole.PLAY_5,
+      console: 'PLAY_5',
       homeGoals: 3,
       awayGoals: 1,
       wentToExtraTime: false,

@@ -6,9 +6,13 @@ export type TournamentFormat =
   | 'GROUP_STAGE_PLUS_ELIMINATION'
   | 'SWISS_PLUS_ELIMINATION'
 
-export type MatchMode = '1v1' | '2v2' | '3v3'
+// Antes uniones literales cerradas ('1v1' | '2v2' | '3v3', 'PLAY_2' | ...).
+// Ahora los catálogos de modalidades y consolas son dinámicos (viven en la
+// base de datos del backend, ver GET /utils/match-modes y /utils/consoles),
+// así que pasan a ser simples alias de `string` tipados por claridad.
+export type MatchModeCode = string
 
-export type ConsoleType = 'PLAY_2' | 'PLAY_3' | 'PLAY_4' | 'PLAY_5'
+export type ConsoleCode = string
 
 // Método elegido para asignar los jugadores cargados a los equipos.
 export type AssignmentMethod = 'MANUAL' | 'DRAW' | 'ROULETTE'
@@ -23,11 +27,11 @@ export interface CreateTournamentPayload {
   name: string
   format: TournamentFormat
   teamCount: number
-  matchMode: MatchMode
+  matchMode: MatchModeCode
   twoLegged: boolean
   thirdPlaceMatch: boolean
   groupSize?: number
-  consoles: ConsoleType[]
+  consoles: ConsoleCode[]
   teams: string[]
   players: string[]
   assignments: TeamAssignment[]
@@ -39,11 +43,11 @@ export interface Tournament {
   name: string
   format: TournamentFormat
   teamCount: number
-  matchMode: MatchMode
+  matchMode: MatchModeCode
   twoLegged: boolean
   thirdPlaceMatch: boolean
   groupSize?: number
-  consoles: ConsoleType[]
+  consoles: ConsoleCode[]
   teams: string[]
   players: string[]
   assignments: TeamAssignment[]
@@ -96,7 +100,7 @@ export interface Match {
   winnerTeamId?: string
   isDraw: boolean
   allowsPenalties: boolean
-  assignedConsole?: ConsoleType
+  assignedConsole?: ConsoleCode
 }
 
 // Fila de tabla de posiciones. Ya viene ordenada y con `rank` desde el back.
@@ -203,9 +207,9 @@ export interface TournamentDetail {
   format: TournamentFormat
   state: TournamentState
   status: TournamentStatus
-  matchMode: MatchMode
+  matchMode: MatchModeCode
   consoleUnits: number
-  allowedConsoles: ConsoleType[]
+  allowedConsoles: ConsoleCode[]
   teams: TournamentTeam[]
   leagueStage?: LeagueStage
   groupStage?: GroupStage
@@ -244,7 +248,7 @@ export interface UpcomingMatch {
   groupName?: string
   homeTeam: UpcomingMatchTeam
   awayTeam: UpcomingMatchTeam
-  assignedConsole: ConsoleType
+  assignedConsole: ConsoleCode
   allowsPenalties: boolean
   // Solo presente en legNumber 2.
   firstLegResult?: FirstLegResult
@@ -276,9 +280,9 @@ export interface NewTournamentWizardData {
   groupSize: number | null
   twoLegged: boolean | null
   thirdPlaceMatch: boolean | null
-  matchMode: MatchMode | null
+  matchMode: MatchModeCode | null
   consoleCount: number | null
-  consoles: ConsoleType[]
+  consoles: ConsoleCode[]
   teams: string[]
   players: string[]
   assignmentMethod: AssignmentMethod | null

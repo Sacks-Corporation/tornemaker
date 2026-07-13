@@ -174,7 +174,13 @@ function MatchResultModal({
               <Button type="button" variant="secondary" onClick={onBack} disabled={isSubmitting}>
                 {t('tournament.tournamentPage.resultModal.back')}
               </Button>
-              <Button type="button" variant="primary" onClick={onConfirm} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onConfirm}
+                disabled={isSubmitting}
+                isLoading={isSubmitting}
+              >
                 {isSubmitting
                   ? t('tournament.tournamentPage.resultModal.submitting')
                   : t('tournament.tournamentPage.resultModal.confirmButton')}

@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { GameConsole } from './console.enum';
 import { MatchResult, MatchResultSchema } from './match-result.schema';
 import { MatchStatus } from './match-status.enum';
 
@@ -94,9 +93,10 @@ export class Match {
    * `Tournament.consoleUnits` — either when `GET /tournaments/:id/matches`
    * first surfaces it as playable, or (as a fallback) by the result PATCH
    * itself if it was somehow never assigned. Once set it never changes.
+   * Holds a `code` from the `consoles` catalog (see UtilsService).
    */
-  @Prop({ type: String, enum: GameConsole })
-  assignedConsole?: GameConsole;
+  @Prop({ type: String })
+  assignedConsole?: string;
 
   @Prop()
   scheduledAt?: Date;

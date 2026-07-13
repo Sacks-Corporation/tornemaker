@@ -4,8 +4,6 @@ import { buildKnockoutStage } from '../draw/knockout-fixtures';
 import { buildLeagueStage } from '../draw/league-fixtures';
 import { buildSwissStage } from '../draw/swiss-fixtures';
 import { makeSeededTeams } from '../draw/test-helpers';
-import { GameConsole } from '../schemas/common/console.enum';
-import { MatchMode } from '../schemas/common/match-mode.enum';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { Team } from '../schemas/common/team.schema';
 import { TournamentFormat } from '../schemas/common/tournament-format.enum';
@@ -32,9 +30,9 @@ function baseTournament(overrides: Partial<Tournament>): TournamentDocument {
     ownerId: new Types.ObjectId(),
     name: 'Test tournament',
     status: TournamentStatus.EN_PROGRESO,
-    matchMode: MatchMode.ONE_VS_ONE,
-    consoleUnits: [GameConsole.PLAY_5],
-    allowedConsoles: [GameConsole.PLAY_5],
+    matchMode: '1v1',
+    consoleUnits: ['PLAY_5'],
+    allowedConsoles: ['PLAY_5'],
     teams: [],
     ...overrides,
   } as unknown as TournamentDocument;

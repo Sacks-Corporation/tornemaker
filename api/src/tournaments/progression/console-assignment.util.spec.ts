@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import {
@@ -7,7 +6,7 @@ import {
   ensureAssignedConsole,
 } from './console-assignment.util';
 
-function scheduledMatch(id: string, assignedConsole?: GameConsole): Match {
+function scheduledMatch(id: string, assignedConsole?: string): Match {
   return {
     matchId: id,
     homeTeamId: 'a',
@@ -23,19 +22,19 @@ function scheduledMatch(id: string, assignedConsole?: GameConsole): Match {
 
 describe('ConsoleAssigner', () => {
   it('round-robins over the given console units starting from the given offset', () => {
-    const units = [GameConsole.PLAY_5, GameConsole.PLAY_5, GameConsole.PLAY_4];
+    const units = ['PLAY_5', 'PLAY_5', 'PLAY_4'];
     const assigner = new ConsoleAssigner(units, 0);
-    expect(assigner.next()).toBe(GameConsole.PLAY_5);
-    expect(assigner.next()).toBe(GameConsole.PLAY_5);
-    expect(assigner.next()).toBe(GameConsole.PLAY_4);
-    expect(assigner.next()).toBe(GameConsole.PLAY_5); // wraps around
+    expect(assigner.next()).toBe('PLAY_5');
+    expect(assigner.next()).toBe('PLAY_5');
+    expect(assigner.next()).toBe('PLAY_4');
+    expect(assigner.next()).toBe('PLAY_5'); // wraps around
   });
 
   it('continues the rotation from a non-zero starting count (idempotent across calls)', () => {
-    const units = [GameConsole.PLAY_5, GameConsole.PLAY_4];
+    const units = ['PLAY_5', 'PLAY_4'];
     const assigner = new ConsoleAssigner(units, 3); // 3 % 2 = 1
-    expect(assigner.next()).toBe(GameConsole.PLAY_4);
-    expect(assigner.next()).toBe(GameConsole.PLAY_5);
+    expect(assigner.next()).toBe('PLAY_4');
+    expect(assigner.next()).toBe('PLAY_5');
   });
 
   it('throws for an empty console list', () => {
@@ -46,18 +45,18 @@ describe('ConsoleAssigner', () => {
 describe('ensureAssignedConsole', () => {
   it('assigns a console when missing', () => {
     const match = scheduledMatch('m1');
-    const assigner = new ConsoleAssigner([GameConsole.PLAY_5], 0);
+    const assigner = new ConsoleAssigner(['PLAY_5'], 0);
     const result = ensureAssignedConsole(match, assigner);
-    expect(result).toBe(GameConsole.PLAY_5);
-    expect(match.assignedConsole).toBe(GameConsole.PLAY_5);
+    expect(result).toBe('PLAY_5');
+    expect(match.assignedConsole).toBe('PLAY_5');
   });
 
   it('does not overwrite an already-assigned console', () => {
-    const match = scheduledMatch('m1', GameConsole.PLAY_3);
-    const assigner = new ConsoleAssigner([GameConsole.PLAY_5], 0);
+    const match = scheduledMatch('m1', 'PLAY_3');
+    const assigner = new ConsoleAssigner(['PLAY_5'], 0);
     const result = ensureAssignedConsole(match, assigner);
-    expect(result).toBe(GameConsole.PLAY_3);
-    expect(match.assignedConsole).toBe(GameConsole.PLAY_3);
+    expect(result).toBe('PLAY_3');
+    expect(match.assignedConsole).toBe('PLAY_3');
   });
 });
 

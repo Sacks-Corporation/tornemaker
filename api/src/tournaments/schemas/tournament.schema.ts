@@ -1,7 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { GameConsole } from './common/console.enum';
-import { MatchMode } from './common/match-mode.enum';
 import { TournamentFormat } from './common/tournament-format.enum';
 import { TournamentState } from './common/tournament-state.enum';
 import { Team, TeamSchema } from './common/team.schema';
@@ -98,22 +96,27 @@ export class Tournament {
   @Prop({ type: String, enum: TournamentState, required: true })
   state: TournamentState;
 
-  /** How many real players share each team (1v1, 2v2, 3v3). */
-  @Prop({ type: String, enum: MatchMode, required: true })
-  matchMode: MatchMode;
+  /**
+   * How many real players share each team (1v1, 2v2, 3v3). Holds a `code`
+   * from the `matchmodes` catalog (see UtilsService) — validated against it
+   * at creation time.
+   */
+  @Prop({ type: String, required: true })
+  matchMode: string;
 
   /**
    * Physical console units available for this tournament, exactly as
    * submitted by the organizer (1-20 entries, duplicates allowed — see the
    * class doc above for the full `consoleUnits` vs `allowedConsoles`
-   * distinction).
+   * distinction). Each entry holds a `code` from the `consoles` catalog
+   * (see UtilsService) — validated against it at creation time.
    */
-  @Prop({ type: [String], enum: GameConsole, required: true })
-  consoleUnits: GameConsole[];
+  @Prop({ type: [String], required: true })
+  consoleUnits: string[];
 
   /** Distinct console types derived from `consoleUnits` (deduplicated). */
-  @Prop({ type: [String], enum: GameConsole, required: true })
-  allowedConsoles: GameConsole[];
+  @Prop({ type: [String], required: true })
+  allowedConsoles: string[];
 
   @Prop({ type: [TeamSchema], default: [] })
   teams: Team[];

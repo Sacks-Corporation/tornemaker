@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { TournamentState } from '../schemas/common/tournament-state.enum';
@@ -24,7 +23,7 @@ export interface PlayableMatchItem {
   groupName?: string;
   homeTeam: PlayableTeam;
   awayTeam: PlayableTeam;
-  assignedConsole: GameConsole;
+  assignedConsole: string;
   allowsPenalties: boolean;
   firstLegResult?: { homeGoals: number; awayGoals: number };
 }

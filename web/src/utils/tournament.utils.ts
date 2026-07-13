@@ -1,13 +1,14 @@
-// Utilidades del dominio "tournaments": combinaciones válidas de parámetros,
-// derivadas del formato/modalidad, sorteo de equipos y armado del payload de
-// creación de torneo.
+// Utilidades del dominio "tournaments": sorteo de equipos y armado del
+// payload de creación de torneo. Las combinaciones válidas de parámetros
+// (cantidades de equipos, tamaños de grupo, IA por formato, modalidades y
+// consolas) ya no viven acá: son catálogos dinámicos que vienen del backend
+// (ver web/src/hooks/utils/useUtilsQueries.ts).
 
 import type {
   AssignmentMethod,
-  ConsoleType,
   CreateTournamentPayload,
   Match,
-  MatchMode,
+  MatchModeCode,
   MatchPhase,
   NewTournamentStep,
   NewTournamentWizardData,
@@ -17,51 +18,6 @@ import type {
   TournamentTeam,
   UpcomingMatch,
 } from '../types/tournament.types'
-
-// Cantidades de equipos válidas por formato.
-export const TEAM_COUNT_OPTIONS_BY_FORMAT: Record<TournamentFormat, number[]> = {
-  SINGLE_ELIMINATION: [6, 8, 10, 12, 16, 20, 24, 28, 32],
-  GROUP_STAGE_PLUS_ELIMINATION: [6, 8, 12, 16, 20, 24, 28, 32],
-  LEAGUE: Array.from({ length: 27 }, (_, index) => index + 4), // 4..30
-  SWISS_PLUS_ELIMINATION: [8, 10, 12, 16, 24, 32],
-}
-
-// Tamaños de grupo válidos según la cantidad de equipos, solo aplica a
-// GROUP_STAGE_PLUS_ELIMINATION.
-export const GROUP_SIZE_OPTIONS_BY_TEAM_COUNT: Record<number, number[]> = {
-  6: [3],
-  8: [4],
-  12: [3, 4],
-  16: [4],
-  20: [5],
-  24: [3, 4],
-  28: [4],
-  32: [4],
-}
-
-export const PER_TEAM_BY_MATCH_MODE: Record<MatchMode, number> = {
-  '1v1': 1,
-  '2v2': 2,
-  '3v3': 3,
-}
-
-// Formatos donde los equipos sin jugadores asignados quedan controlados por IA.
-export const AI_ALLOWED_FORMATS: TournamentFormat[] = [
-  'SINGLE_ELIMINATION',
-  'GROUP_STAGE_PLUS_ELIMINATION',
-]
-
-export const formatAllowsAi = (format: TournamentFormat | null): boolean =>
-  format !== null && AI_ALLOWED_FORMATS.includes(format)
-
-export const getTeamCountOptions = (format: TournamentFormat | null): number[] =>
-  format ? TEAM_COUNT_OPTIONS_BY_FORMAT[format] : []
-
-export const getGroupSizeOptions = (teamCount: number | null): number[] =>
-  teamCount !== null ? (GROUP_SIZE_OPTIONS_BY_TEAM_COUNT[teamCount] ?? []) : []
-
-export const getPerTeam = (matchMode: MatchMode | null): number =>
-  matchMode ? PER_TEAM_BY_MATCH_MODE[matchMode] : 1
 
 // Devuelve una lista con los nombres cargados, sin espacios sobrantes ni vacíos.
 export const getFilledNames = (names: string[]): string[] =>
@@ -183,8 +139,6 @@ export const getWizardStepMeta = (
   return { currentStep: index >= 0 ? index + 1 : 1, totalSteps: visibleSteps.length }
 }
 
-export const DEFAULT_CONSOLE_TYPE: ConsoleType = 'PLAY_4'
-
 // Arma el body de POST /tournaments a partir del estado persistido del wizard.
 // Asume que el estado ya fue validado (todos los campos requeridos completos).
 export const buildTournamentPayload = (
@@ -197,7 +151,7 @@ export const buildTournamentPayload = (
     name: wizard.name.trim(),
     format,
     teamCount: wizard.teamCount as number,
-    matchMode: wizard.matchMode as MatchMode,
+    matchMode: wizard.matchMode as MatchModeCode,
     twoLegged: wizard.twoLegged ?? false,
     thirdPlaceMatch: format === 'LEAGUE' ? false : (wizard.thirdPlaceMatch ?? false),
     ...(includesGroupSize ? { groupSize: wizard.groupSize as number } : {}),
@@ -240,6 +194,17 @@ export const getTeamPlayerNames = (
 ): string[] => {
   if (!teamId) return []
   return teamMap.get(teamId)?.playerNames ?? []
+}
+
+// Lookup code -> label sobre un catálogo dinámico (consolas, modalidades).
+// Si el code ya no existe en el catálogo (por ejemplo, un torneo viejo con
+// una consola/modalidad dada de baja) se muestra el code crudo como fallback.
+export const getCatalogLabel = (
+  items: Array<{ code: string; label: string }>,
+  code: string | null | undefined,
+): string => {
+  if (!code) return ''
+  return items.find((item) => item.code === code)?.label ?? code
 }
 
 // Determina si el resultado ingresado en el modal de carga está empatado y

@@ -4,7 +4,32 @@ import Header from '../../common/Header'
 import Footer from '../../common/Footer'
 import Button from '../../common/Button'
 import TournamentCard from '../../common/TournamentCard'
+import Skeleton from '../../common/Skeleton'
 import type { TournamentStatus } from '../../../types/tournament.types'
+
+const LOADING_CARD_COUNT = 6
+
+// Placeholder con la misma silueta que TournamentCard (título, badge de
+// estado, footer con equipos/fecha), mostrado mientras GET /tournaments
+// todavía está en vuelo.
+function TournamentCardSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex w-full flex-col gap-3 rounded-2xl border-2 border-border bg-surface p-4 sm:p-6"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-40" />
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  )
+}
 
 export interface TournamentListItem {
   id: string
@@ -50,7 +75,16 @@ function TournamentListPage({
         <h1 className="text-2xl font-bold text-text sm:text-3xl">{t('tournament.list.title')}</h1>
 
         {isLoading && (
-          <p className="py-10 text-center text-sm text-text-muted">{t('tournament.list.loading')}</p>
+          <div
+            role="status"
+            aria-busy="true"
+            aria-label={t('tournament.list.loading')}
+            className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+          >
+            {Array.from({ length: LOADING_CARD_COUNT }, (_, index) => (
+              <TournamentCardSkeleton key={index} />
+            ))}
+          </div>
         )}
 
         {isError && (

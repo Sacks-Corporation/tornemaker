@@ -5,7 +5,11 @@ import ConfirmationStep from './ConfirmationStep'
 import type { ConfirmationTeamSummary } from './ConfirmationStep'
 import type { NewTournamentWizard } from '../../../../../hooks/tournaments/useNewTournamentWizard'
 import { useCreateTournamentMutation } from '../../../../../hooks/tournaments/useTournamentMutations'
-import { buildTournamentPayload, getFilledNames } from '../../../../../utils/tournament.utils'
+import {
+  buildTournamentPayload,
+  getCatalogLabel,
+  getFilledNames,
+} from '../../../../../utils/tournament.utils'
 
 export interface ConfirmationStepContainerProps {
   wizard: NewTournamentWizard
@@ -29,8 +33,8 @@ function ConfirmationStepContainer({
   const formatLabel = data.format ? t(`tournament.formats.${data.format}.title`) : ''
   const showGroupSize = data.format === 'GROUP_STAGE_PLUS_ELIMINATION'
   const showThirdPlaceMatch = data.format !== 'LEAGUE'
-  const matchModeLabel = data.matchMode ? t(`tournament.matchModes.${data.matchMode}`) : ''
-  const consoleLabels = data.consoles.map((consoleType) => t(`tournament.consoleTypes.${consoleType}`))
+  const matchModeLabel = getCatalogLabel(wizard.matchModes, data.matchMode)
+  const consoleLabels = data.consoles.map((consoleType) => getCatalogLabel(wizard.consoles, consoleType))
 
   const teams: ConfirmationTeamSummary[] = Array.from({ length: teamCount }, (_, index) => {
     const assignment = data.assignments.find((item) => item.teamIndex === index)

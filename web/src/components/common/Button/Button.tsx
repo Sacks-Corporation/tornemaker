@@ -1,10 +1,16 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import Spinner from '../Spinner'
+import type { SpinnerSize } from '../Spinner'
 import type { ButtonSize, ButtonVariant } from '../../../types/common.types'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode
   variant?: ButtonVariant
   size?: ButtonSize
+  // Muestra un Spinner junto al contenido y deshabilita el botón. Útil para
+  // acciones async (guardar, confirmar, crear) además del `disabled` plano.
+  isLoading?: boolean
+  loadingLabel?: string
 }
 
 const baseClasses =
@@ -29,11 +35,20 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'px-7 py-3 text-lg',
 }
 
+const spinnerSizeBySize: Record<ButtonSize, SpinnerSize> = {
+  sm: 'sm',
+  md: 'sm',
+  lg: 'md',
+}
+
 function Button({
   children,
   variant = 'primary',
   size = 'md',
   className = '',
+  isLoading = false,
+  loadingLabel,
+  disabled,
   ...rest
 }: ButtonProps) {
   const classes = [baseClasses, variantClasses[variant], sizeClasses[size], className]
@@ -41,7 +56,8 @@ function Button({
     .join(' ')
 
   return (
-    <button className={classes} {...rest}>
+    <button className={classes} disabled={disabled || isLoading} aria-busy={isLoading || undefined} {...rest}>
+      {isLoading && <Spinner size={spinnerSizeBySize[size]} label={loadingLabel} />}
       {children}
     </button>
   )

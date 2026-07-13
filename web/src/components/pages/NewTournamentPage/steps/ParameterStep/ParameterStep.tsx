@@ -4,7 +4,7 @@ import TextInput from '../../../../common/TextInput'
 import Select from '../../../../common/Select'
 import RadioGroup from '../../../../common/RadioGroup'
 import type { SelectOption, RadioOption } from '../../../../../types/common.types'
-import type { ConsoleType, MatchMode } from '../../../../../types/tournament.types'
+import type { ConsoleCode, MatchModeCode } from '../../../../../types/tournament.types'
 
 export interface ParameterStepProps {
   formatLabel: string
@@ -13,6 +13,7 @@ export interface ParameterStepProps {
   teamCountOptions: SelectOption[]
   teamCount: string | null
   onTeamCountChange: (value: string) => void
+  isLoadingTeamCount: boolean
   showGroupSize: boolean
   groupSizeOptions: SelectOption[]
   groupSize: string | null
@@ -23,15 +24,17 @@ export interface ParameterStepProps {
   showThirdPlaceMatch: boolean
   thirdPlaceMatch: string | null
   onThirdPlaceMatchChange: (value: string) => void
-  matchModeOptions: RadioOption<MatchMode>[]
-  matchMode: MatchMode | null
-  onMatchModeChange: (value: MatchMode) => void
+  matchModeOptions: RadioOption<MatchModeCode>[]
+  matchMode: MatchModeCode | null
+  onMatchModeChange: (value: MatchModeCode) => void
+  isLoadingMatchMode: boolean
   consoleCountOptions: SelectOption[]
   consoleCount: string | null
   onConsoleCountChange: (value: string) => void
-  consoles: ConsoleType[]
-  consoleTypeOptions: SelectOption<ConsoleType>[]
-  onConsoleTypeChange: (index: number, value: ConsoleType) => void
+  consoles: ConsoleCode[]
+  consoleTypeOptions: SelectOption<ConsoleCode>[]
+  onConsoleTypeChange: (index: number, value: ConsoleCode) => void
+  isLoadingConsoleType: boolean
   currentStep: number
   totalSteps: number
   onBack: () => void
@@ -46,6 +49,7 @@ function ParameterStep({
   teamCountOptions,
   teamCount,
   onTeamCountChange,
+  isLoadingTeamCount,
   showGroupSize,
   groupSizeOptions,
   groupSize,
@@ -59,12 +63,14 @@ function ParameterStep({
   matchModeOptions,
   matchMode,
   onMatchModeChange,
+  isLoadingMatchMode,
   consoleCountOptions,
   consoleCount,
   onConsoleCountChange,
   consoles,
   consoleTypeOptions,
   onConsoleTypeChange,
+  isLoadingConsoleType,
   currentStep,
   totalSteps,
   onBack,
@@ -100,6 +106,8 @@ function ParameterStep({
           options={teamCountOptions}
           value={teamCount}
           onChange={onTeamCountChange}
+          isLoading={isLoadingTeamCount}
+          loadingLabel={t('tournament.steps.parameters.teamCount.loadingLabel')}
         />
 
         {showGroupSize && (
@@ -109,6 +117,8 @@ function ParameterStep({
             options={groupSizeOptions}
             value={groupSize}
             onChange={onGroupSizeChange}
+            isLoading={isLoadingTeamCount}
+            loadingLabel={t('tournament.steps.parameters.groupSize.loadingLabel')}
           />
         )}
       </div>
@@ -140,6 +150,8 @@ function ParameterStep({
         options={matchModeOptions}
         value={matchMode}
         onChange={onMatchModeChange}
+        isLoading={isLoadingMatchMode}
+        loadingLabel={t('tournament.steps.parameters.matchMode.loadingLabel')}
       />
 
       <Select
@@ -148,6 +160,8 @@ function ParameterStep({
         options={consoleCountOptions}
         value={consoleCount}
         onChange={onConsoleCountChange}
+        isLoading={isLoadingConsoleType}
+        loadingLabel={t('tournament.steps.parameters.consoleCount.loadingLabel')}
       />
 
       {consoles.length > 0 && (
@@ -159,6 +173,8 @@ function ParameterStep({
               options={consoleTypeOptions}
               value={consoleType}
               onChange={(value) => onConsoleTypeChange(index, value)}
+              isLoading={isLoadingConsoleType}
+              loadingLabel={t('tournament.steps.parameters.consoleType.loadingLabel')}
             />
           ))}
         </div>

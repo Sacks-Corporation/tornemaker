@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { SwissStage } from '../schemas/swiss-stage.schema';
@@ -17,7 +16,7 @@ function playedMatch(
     isTwoLegged: false,
     legs: [
       {
-        console: GameConsole.PLAY_5,
+        console: 'PLAY_5',
         homeGoals: winnerTeamId === homeTeamId ? 1 : 0,
         awayGoals: winnerTeamId === awayTeamId ? 1 : 0,
         wentToPenalties: false,
@@ -44,7 +43,7 @@ function scheduledMatch(
     status: MatchStatus.SCHEDULED,
     isDraw: false,
     allowsPenalties: true,
-  } as Match;
+  };
 }
 
 function stage(rounds: Match[][]): SwissStage {
@@ -57,7 +56,7 @@ function stage(rounds: Match[][]): SwissStage {
     playIn: [],
     qualifiedTeamIds: [],
     knockoutTwoLegged: false,
-  } as unknown as SwissStage;
+  };
 }
 
 describe('computeSwissDecidedMatchIds', () => {

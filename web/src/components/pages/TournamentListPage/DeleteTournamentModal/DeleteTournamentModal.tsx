@@ -31,7 +31,13 @@ function DeleteTournamentModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('tournament.list.deleteModal.cancel')}
           </Button>
-          <Button type="button" variant="primary" onClick={onConfirm} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
             {isSubmitting
               ? t('tournament.list.deleteModal.confirming')
               : t('tournament.list.deleteModal.confirm')}

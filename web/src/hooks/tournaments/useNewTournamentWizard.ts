@@ -1,20 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../auth/AuthContext'
+import { useConsolesQuery, useFormatRulesQuery, useMatchModesQuery } from '../utils/useUtilsQueries'
 import { formatDate } from '../../utils/date.utils'
-import {
-  DEFAULT_CONSOLE_TYPE,
-  buildDrawAssignments,
-  formatAllowsAi,
-  getGroupSizeOptions,
-  getPerTeam,
-  getTeamCountOptions,
-  getUnassignedPlayers,
-} from '../../utils/tournament.utils'
+import { buildDrawAssignments, getUnassignedPlayers } from '../../utils/tournament.utils'
 import type {
   AssignmentMethod,
-  ConsoleType,
-  MatchMode,
+  ConsoleCode,
+  MatchModeCode,
   NewTournamentStep,
   NewTournamentWizardData,
   TournamentFormat,
@@ -31,11 +24,15 @@ function resizeStringArray(items: string[], length: number): string[] {
   return [...items, ...Array<string>(length - items.length).fill('')]
 }
 
-function resizeConsoleArray(items: ConsoleType[], length: number): ConsoleType[] {
+function resizeConsoleArray(
+  items: ConsoleCode[],
+  length: number,
+  defaultConsole: ConsoleCode,
+): ConsoleCode[] {
   if (length < 0) return []
   if (items.length === length) return items
   if (items.length > length) return items.slice(0, length)
-  return [...items, ...Array<ConsoleType>(length - items.length).fill(DEFAULT_CONSOLE_TYPE)]
+  return [...items, ...Array<ConsoleCode>(length - items.length).fill(defaultConsole)]
 }
 
 function buildDefaultData(defaultName: string): NewTournamentWizardData {
@@ -71,6 +68,11 @@ function readStoredData(): NewTournamentWizardData | null {
 // método de asignación), persistido en sessionStorage para sobrevivir un
 // refresh de la página. Se borra explícitamente al finalizar el wizard (éxito
 // o cancelación) y se pierde al cerrar la pestaña.
+//
+// Los catálogos dinámicos (consolas, modalidades, reglas de formato) se leen
+// acá vía TanStack Query y alimentan los valores derivados (`perTeam`,
+// `allowsAi`, `teamCountOptions`, `groupSizeOptions`) que consumen los
+// distintos steps, igual que antes cuando salían de tablas hardcodeadas.
 export function useNewTournamentWizard() {
   const { t } = useTranslation()
   const { user } = useAuth()
@@ -95,60 +97,75 @@ export function useNewTournamentWizard() {
     sessionStorage.removeItem(STORAGE_KEY)
   }, [])
 
+  const consolesQuery = useConsolesQuery()
+  const matchModesQuery = useMatchModesQuery()
+  const formatRulesQuery = useFormatRulesQuery(data.format)
+
+  const consoles = useMemo(() => consolesQuery.data ?? [], [consolesQuery.data])
+  const matchModes = useMemo(() => matchModesQuery.data ?? [], [matchModesQuery.data])
+  const formatRules = formatRulesQuery.data
+
+  const defaultConsole: ConsoleCode = useMemo(
+    () => consoles.find((item) => item.isDefault)?.code ?? consoles[0]?.code ?? '',
+    [consoles],
+  )
+
+  const perTeamByMode = useMemo(() => {
+    const map = new Map<string, number>()
+    matchModes.forEach((mode) => map.set(mode.code, mode.playersPerTeam))
+    return map
+  }, [matchModes])
+
+  const getPerTeamFor = useCallback(
+    (matchMode: MatchModeCode | null) => (matchMode ? (perTeamByMode.get(matchMode) ?? 1) : 1),
+    [perTeamByMode],
+  )
+
   const setFormat = useCallback((format: TournamentFormat) => {
-    setData((prev) => {
-      const teamCountOptions = getTeamCountOptions(format)
-      const teamCount =
-        prev.teamCount !== null && teamCountOptions.includes(prev.teamCount)
-          ? prev.teamCount
-          : null
-
-      const isGroupStage = format === 'GROUP_STAGE_PLUS_ELIMINATION'
-      const groupSizeOptions = isGroupStage ? getGroupSizeOptions(teamCount) : []
-      const groupSize = isGroupStage
-        ? (groupSizeOptions.length === 1
-            ? groupSizeOptions[0]
-            : prev.groupSize !== null && groupSizeOptions.includes(prev.groupSize)
-              ? prev.groupSize
-              : null)
-        : null
-
-      return {
-        ...prev,
-        format,
-        teamCount,
-        groupSize,
-        thirdPlaceMatch: format === 'LEAGUE' ? false : prev.thirdPlaceMatch,
-      }
-    })
+    setData((prev) => ({
+      ...prev,
+      format,
+      // Las cantidades de equipos/tamaños de grupo válidos dependen del nuevo
+      // formato y se resuelven de forma asíncrona (useFormatRulesQuery), así
+      // que se resetean acá: el usuario los vuelve a elegir una vez que
+      // cargó el catálogo del formato elegido.
+      teamCount: null,
+      groupSize: null,
+      thirdPlaceMatch: format === 'LEAGUE' ? false : prev.thirdPlaceMatch,
+    }))
   }, [])
 
   const setName = useCallback((name: string) => {
     setData((prev) => ({ ...prev, name }))
   }, [])
 
-  const setTeamCount = useCallback((teamCount: number) => {
-    setData((prev) => {
-      const perTeam = getPerTeam(prev.matchMode)
-      const isGroupStage = prev.format === 'GROUP_STAGE_PLUS_ELIMINATION'
-      const groupSizeOptions = isGroupStage ? getGroupSizeOptions(teamCount) : []
-      const groupSize = isGroupStage
-        ? (groupSizeOptions.length === 1
-            ? groupSizeOptions[0]
-            : prev.groupSize !== null && groupSizeOptions.includes(prev.groupSize)
-              ? prev.groupSize
-              : null)
-        : null
+  const setTeamCount = useCallback(
+    (teamCount: number) => {
+      setData((prev) => {
+        const perTeam = getPerTeamFor(prev.matchMode)
+        const isGroupStage = prev.format === 'GROUP_STAGE_PLUS_ELIMINATION'
+        const groupSizeOptions = isGroupStage
+          ? (formatRules?.groupSizesByTeamCount?.[teamCount] ?? [])
+          : []
+        const groupSize = isGroupStage
+          ? (groupSizeOptions.length === 1
+              ? groupSizeOptions[0]
+              : prev.groupSize !== null && groupSizeOptions.includes(prev.groupSize)
+                ? prev.groupSize
+                : null)
+          : null
 
-      return {
-        ...prev,
-        teamCount,
-        groupSize,
-        teams: resizeStringArray(prev.teams, teamCount),
-        players: resizeStringArray(prev.players, teamCount * perTeam),
-      }
-    })
-  }, [])
+        return {
+          ...prev,
+          teamCount,
+          groupSize,
+          teams: resizeStringArray(prev.teams, teamCount),
+          players: resizeStringArray(prev.players, teamCount * perTeam),
+        }
+      })
+    },
+    [getPerTeamFor, formatRules],
+  )
 
   const setGroupSize = useCallback((groupSize: number) => {
     setData((prev) => ({ ...prev, groupSize }))
@@ -162,23 +179,29 @@ export function useNewTournamentWizard() {
     setData((prev) => ({ ...prev, thirdPlaceMatch }))
   }, [])
 
-  const setMatchMode = useCallback((matchMode: MatchMode) => {
-    setData((prev) => {
-      const perTeam = getPerTeam(matchMode)
-      const teamCount = prev.teamCount ?? 0
-      return { ...prev, matchMode, players: resizeStringArray(prev.players, teamCount * perTeam) }
-    })
-  }, [])
+  const setMatchMode = useCallback(
+    (matchMode: MatchModeCode) => {
+      setData((prev) => {
+        const perTeam = getPerTeamFor(matchMode)
+        const teamCount = prev.teamCount ?? 0
+        return { ...prev, matchMode, players: resizeStringArray(prev.players, teamCount * perTeam) }
+      })
+    },
+    [getPerTeamFor],
+  )
 
-  const setConsoleCount = useCallback((consoleCount: number) => {
-    setData((prev) => ({
-      ...prev,
-      consoleCount,
-      consoles: resizeConsoleArray(prev.consoles, consoleCount),
-    }))
-  }, [])
+  const setConsoleCount = useCallback(
+    (consoleCount: number) => {
+      setData((prev) => ({
+        ...prev,
+        consoleCount,
+        consoles: resizeConsoleArray(prev.consoles, consoleCount, defaultConsole),
+      }))
+    },
+    [defaultConsole],
+  )
 
-  const setConsoleTypeAt = useCallback((index: number, type: ConsoleType) => {
+  const setConsoleTypeAt = useCallback((index: number, type: ConsoleCode) => {
     setData((prev) => {
       const consoles = [...prev.consoles]
       consoles[index] = type
@@ -217,22 +240,25 @@ export function useNewTournamentWizard() {
   // Resuelve el método de asignación elegido en el modal de PlayersStep:
   // - MANUAL: pasa al step de asignación manual (TeamPlayersStep).
   // - DRAW: resuelve el sorteo acá mismo y salta directo a Confirmation.
-  const chooseAssignmentMethod = useCallback((method: AssignmentMethod) => {
-    setData((prev) => {
-      if (method === 'DRAW') {
-        const perTeam = getPerTeam(prev.matchMode)
-        const assignments = buildDrawAssignments(prev.players, prev.teamCount ?? 0, perTeam)
-        return { ...prev, assignmentMethod: method, assignments, step: 'confirmation' }
-      }
+  const chooseAssignmentMethod = useCallback(
+    (method: AssignmentMethod) => {
+      setData((prev) => {
+        if (method === 'DRAW') {
+          const perTeam = getPerTeamFor(prev.matchMode)
+          const assignments = buildDrawAssignments(prev.players, prev.teamCount ?? 0, perTeam)
+          return { ...prev, assignmentMethod: method, assignments, step: 'confirmation' }
+        }
 
-      if (method === 'MANUAL') {
-        return { ...prev, assignmentMethod: method, step: 'teamPlayers' }
-      }
+        if (method === 'MANUAL') {
+          return { ...prev, assignmentMethod: method, step: 'teamPlayers' }
+        }
 
-      // ROULETTE está deshabilitada (Próximamente): no debería poder elegirse.
-      return prev
-    })
-  }, [])
+        // ROULETTE está deshabilitada (Próximamente): no debería poder elegirse.
+        return prev
+      })
+    },
+    [getPerTeamFor],
+  )
 
   const goNext = useCallback(() => {
     setData((prev) => {
@@ -283,10 +309,11 @@ export function useNewTournamentWizard() {
     })
   }, [])
 
-  const perTeam = getPerTeam(data.matchMode)
-  const allowsAi = formatAllowsAi(data.format)
-  const teamCountOptions = getTeamCountOptions(data.format)
-  const groupSizeOptions = getGroupSizeOptions(data.teamCount)
+  const perTeam = getPerTeamFor(data.matchMode)
+  const allowsAi = formatRules?.allowsAi ?? false
+  const teamCountOptions = formatRules?.teamCounts ?? []
+  const groupSizeOptions =
+    data.teamCount !== null ? (formatRules?.groupSizesByTeamCount?.[data.teamCount] ?? []) : []
   const unassignedPlayers = getUnassignedPlayers(data.players, data.assignments)
 
   return {
@@ -296,6 +323,12 @@ export function useNewTournamentWizard() {
     teamCountOptions,
     groupSizeOptions,
     unassignedPlayers,
+    consoles,
+    matchModes,
+    defaultConsole,
+    isLoadingConsoles: consolesQuery.isLoading,
+    isLoadingMatchModes: matchModesQuery.isLoading,
+    isLoadingFormatRules: formatRulesQuery.isLoading,
     setFormat,
     setName,
     setTeamCount,

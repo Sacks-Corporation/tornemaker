@@ -1,4 +1,3 @@
-import { MatchMode } from '../schemas/common/match-mode.enum';
 import { TournamentFormat } from '../schemas/common/tournament-format.enum';
 
 /**
@@ -43,13 +42,6 @@ export const GROUP_SIZE_OPTIONS_BY_TEAM_COUNT: Readonly<
   24: [3, 4],
   28: [4],
   32: [4],
-};
-
-/** How many real players make up one team, per match mode. */
-export const PLAYERS_PER_TEAM: Record<MatchMode, number> = {
-  [MatchMode.ONE_VS_ONE]: 1,
-  [MatchMode.TWO_VS_TWO]: 2,
-  [MatchMode.THREE_VS_THREE]: 3,
 };
 
 /**

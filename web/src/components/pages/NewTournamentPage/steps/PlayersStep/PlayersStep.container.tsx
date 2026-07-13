@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import PlayersStep from './PlayersStep'
 import type { NewTournamentWizard } from '../../../../../hooks/tournaments/useNewTournamentWizard'
-import { getFilledNames, hasDuplicateNames } from '../../../../../utils/tournament.utils'
+import { getCatalogLabel, getFilledNames, hasDuplicateNames } from '../../../../../utils/tournament.utils'
 import type { RadioOption } from '../../../../../types/common.types'
 import type { AssignmentMethod } from '../../../../../types/tournament.types'
 
@@ -64,9 +64,7 @@ function PlayersStepContainer({ wizard, currentStep, totalSteps }: PlayersStepCo
       players={players}
       onPlayerChange={wizard.setPlayerNameAt}
       allowsAi={wizard.allowsAi}
-      matchModeLabel={
-        wizard.data.matchMode ? t(`tournament.matchModes.${wizard.data.matchMode}`) : ''
-      }
+      matchModeLabel={getCatalogLabel(wizard.matchModes, wizard.data.matchMode)}
       perTeam={wizard.perTeam}
       errorMessage={errorMessage}
       currentStep={currentStep}

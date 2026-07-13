@@ -1,12 +1,14 @@
 import { useTranslation } from 'react-i18next'
 import UpcomingMatchesBar from './UpcomingMatchesBar'
 import type { UpcomingMatchCardView } from './UpcomingMatchesBar'
-import { getTeamName, isTwoLeggedPhase } from '../../../../utils/tournament.utils'
+import { useConsolesQuery } from '../../../../hooks/utils/useUtilsQueries'
+import { getCatalogLabel, getTeamName, isTwoLeggedPhase } from '../../../../utils/tournament.utils'
 import type { TournamentDetail, TournamentTeam, UpcomingMatch } from '../../../../types/tournament.types'
 
 export interface UpcomingMatchesBarContainerProps {
   tournament: TournamentDetail
   upcomingMatches: UpcomingMatch[]
+  isLoadingMatches: boolean
   teamMap: Map<string, TournamentTeam>
   onSelectMatch: (match: UpcomingMatch) => void
   onResetClick: () => void
@@ -18,12 +20,18 @@ export interface UpcomingMatchesBarContainerProps {
 function UpcomingMatchesBarContainer({
   tournament,
   upcomingMatches,
+  isLoadingMatches,
   teamMap,
   onSelectMatch,
   onResetClick,
 }: UpcomingMatchesBarContainerProps) {
   const { t } = useTranslation()
   const placeholder = t('tournament.tournamentPage.placeholderTeam')
+  const consolesQuery = useConsolesQuery()
+  const consoles = consolesQuery.data ?? []
+  // Además del propio fetch de partidos, las cards dependen del catálogo de
+  // consolas para el label de cada consola asignada.
+  const isLoading = isLoadingMatches || consolesQuery.isLoading
 
   const matchesById = new Map(upcomingMatches.map((match) => [match.matchId, match]))
 
@@ -45,7 +53,7 @@ function UpcomingMatchesBarContainer({
       awayName: match.awayTeam.name || placeholder,
       awayPlayers: match.awayTeam.playerNames,
       consoleLabel: t('tournament.tournamentPage.upcomingBar.console', {
-        console: t(`tournament.consoleTypes.${match.assignedConsole}`),
+        console: getCatalogLabel(consoles, match.assignedConsole),
       }),
       firstLegResultLabel: match.firstLegResult
         ? t('tournament.tournamentPage.upcomingBar.firstLegResult', {
@@ -79,6 +87,7 @@ function UpcomingMatchesBarContainer({
     <UpcomingMatchesBar
       matches={cards}
       isFinished={isFinished}
+      isLoading={isLoading}
       championName={championName}
       onSelectMatch={handleSelectMatch}
       onResetClick={onResetClick}

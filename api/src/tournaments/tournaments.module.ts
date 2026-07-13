@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { UtilsModule } from '../utils/utils.module';
 import { DrawService } from './draw/draw.service';
 import { MatchProgressionService } from './progression/match-progression.service';
 import { Tournament, TournamentSchema } from './schemas/tournament.schema';
@@ -22,6 +23,7 @@ import { TournamentsService } from './tournaments.service';
     MongooseModule.forFeature([
       { name: Tournament.name, schema: TournamentSchema },
     ]),
+    UtilsModule,
   ],
   controllers: [TournamentsController],
   providers: [TournamentsService, DrawService, MatchProgressionService],

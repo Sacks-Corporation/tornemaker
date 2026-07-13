@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import MatchResultModal from './MatchResultModal'
 import type { MatchResultModalStep } from './MatchResultModal'
 import { useMatchResultMutation } from '../../../../hooks/tournaments/useTournamentMutations'
+import { useConsolesQuery } from '../../../../hooks/utils/useUtilsQueries'
 import { getApiErrorMessage } from '../../../../utils/api.errors'
-import { getAggregateScore, isTiedResult } from '../../../../utils/tournament.utils'
+import { getAggregateScore, getCatalogLabel, isTiedResult } from '../../../../utils/tournament.utils'
 import type { RadioOption } from '../../../../types/common.types'
 import type { UpcomingMatch } from '../../../../types/tournament.types'
 
@@ -37,6 +38,8 @@ function MatchResultModalContainer({
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const mutation = useMatchResultMutation(tournamentId)
+  const consolesQuery = useConsolesQuery()
+  const consoles = consolesQuery.data ?? []
 
   const parsedHomeGoals = homeGoalsValue.trim() === '' ? null : Number(homeGoalsValue)
   const parsedAwayGoals = awayGoalsValue.trim() === '' ? null : Number(awayGoalsValue)
@@ -136,7 +139,7 @@ function MatchResultModalContainer({
       groupLabel={match.groupName}
       legLabel={legLabel}
       consoleLabel={t('tournament.tournamentPage.upcomingBar.console', {
-        console: t(`tournament.consoleTypes.${match.assignedConsole}`),
+        console: getCatalogLabel(consoles, match.assignedConsole),
       })}
       firstLegResultLabel={
         match.firstLegResult

@@ -1,6 +1,9 @@
 import type { KeyboardEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import Button from '../../../common/Button'
+import Skeleton from '../../../common/Skeleton'
+
+const LOADING_CARD_COUNT = 3
 
 export interface UpcomingMatchCardView {
   matchId: string
@@ -19,9 +22,27 @@ export interface UpcomingMatchCardView {
 export interface UpcomingMatchesBarProps {
   matches: UpcomingMatchCardView[]
   isFinished: boolean
+  isLoading?: boolean
   championName?: string
   onSelectMatch: (matchId: string) => void
   onResetClick: () => void
+}
+
+// Placeholder con la misma silueta que MatchCard (header, dos bloques de
+// equipo, badge de acción), mostrado mientras los próximos partidos y/o el
+// catálogo de consolas todavía están en vuelo.
+function MatchCardSkeleton() {
+  return (
+    <div aria-hidden="true" className="flex flex-col gap-2 rounded-2xl border-2 border-border bg-surface p-4">
+      <Skeleton className="h-3 w-1/2" />
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+      <Skeleton className="h-3 w-1/3" />
+      <Skeleton className="mt-1 h-6 w-28 rounded-full" />
+    </div>
+  )
 }
 
 function MatchCard({
@@ -92,6 +113,7 @@ function MatchCard({
 function UpcomingMatchesBar({
   matches,
   isFinished,
+  isLoading = false,
   championName,
   onSelectMatch,
   onResetClick,
@@ -110,13 +132,25 @@ function UpcomingMatchesBar({
             variant="secondary"
             size="sm"
             onClick={onResetClick}
+            disabled={isLoading}
             className="self-start sm:self-auto"
           >
             {t('tournament.tournamentPage.upcomingBar.resetButton')}
           </Button>
         </div>
 
-        {isFinished ? (
+        {isLoading ? (
+          <div
+            role="status"
+            aria-busy="true"
+            aria-label={t('tournament.tournamentPage.upcomingBar.loading')}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {Array.from({ length: LOADING_CARD_COUNT }, (_, index) => (
+              <MatchCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : isFinished ? (
           <div className="rounded-2xl border-2 border-primary bg-primary/10 p-4 text-center">
             <p className="text-base font-semibold text-text">{t('tournament.tournamentPage.finished.title')}</p>
             {championName && (

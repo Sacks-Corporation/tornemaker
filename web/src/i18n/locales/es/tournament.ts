@@ -22,17 +22,6 @@ const tournament = {
       description: 'Rondas emparejadas por rendimiento, seguidas de una fase de eliminación.',
     },
   },
-  matchModes: {
-    '1v1': '1 vs 1',
-    '2v2': '2 vs 2',
-    '3v3': '3 vs 3',
-  },
-  consoleTypes: {
-    PLAY_2: 'Play 2',
-    PLAY_3: 'Play 3',
-    PLAY_4: 'Play 4',
-    PLAY_5: 'Play 5',
-  },
   yesNo: {
     yes: 'Sí',
     no: 'No',
@@ -53,10 +42,12 @@ const tournament = {
       teamCount: {
         label: 'Cantidad de equipos',
         placeholder: 'Seleccioná la cantidad de equipos',
+        loadingLabel: 'Cargando cantidades disponibles…',
       },
       groupSize: {
         label: 'Tamaño de grupo',
         placeholder: 'Seleccioná el tamaño de grupo',
+        loadingLabel: 'Cargando tamaños disponibles…',
       },
       twoLegged: {
         label: 'Ida y vuelta',
@@ -66,13 +57,16 @@ const tournament = {
       },
       matchMode: {
         label: 'Modalidad',
+        loadingLabel: 'Cargando modalidades…',
       },
       consoleCount: {
         label: 'Cantidad de consolas',
         placeholder: 'Seleccioná la cantidad de consolas',
+        loadingLabel: 'Cargando consolas…',
       },
       consoleType: {
         label: 'Consola {{index}}',
+        loadingLabel: 'Cargando consolas…',
       },
     },
     teams: {
@@ -198,6 +192,7 @@ const tournament = {
     },
     upcomingBar: {
       title: 'Próximos partidos',
+      loading: 'Cargando próximos partidos…',
       empty: 'No hay partidos disponibles para cargar en este momento.',
       legFirst: 'Ida',
       legSecond: 'Vuelta',

@@ -34,6 +34,9 @@ const common = {
   snackbar: {
     close: 'Cerrar',
   },
+  loading: {
+    label: 'Cargando…',
+  },
 } as const
 
 export default common

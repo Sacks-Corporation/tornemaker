@@ -1,7 +1,5 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
-import { MatchMode } from '../schemas/common/match-mode.enum';
 import { Standing } from '../schemas/common/standing.schema';
 import { TournamentFormat } from '../schemas/common/tournament-format.enum';
 import { TournamentState } from '../schemas/common/tournament-state.enum';
@@ -13,7 +11,7 @@ import {
 } from '../schemas/tournament.schema';
 
 export interface SerializedMatchResult {
-  console: GameConsole;
+  console: string;
   homeGoals: number;
   awayGoals: number;
   wentToPenalties: boolean;
@@ -30,7 +28,7 @@ export interface SerializedMatch {
   winnerTeamId?: string;
   isDraw: boolean;
   allowsPenalties: boolean;
-  assignedConsole?: GameConsole;
+  assignedConsole?: string;
 }
 
 export function serializeMatch(match: Match): SerializedMatch {
@@ -147,9 +145,9 @@ export interface SerializedTournament {
   format: TournamentFormat;
   state: TournamentState;
   status: TournamentStatus;
-  matchMode: MatchMode;
-  consoleUnits: GameConsole[];
-  allowedConsoles: GameConsole[];
+  matchMode: string;
+  consoleUnits: string[];
+  allowedConsoles: string[];
   teams: Array<{ teamId: string; name: string; playerNames: string[] }>;
   leagueStage?: {
     doubleRound: boolean;

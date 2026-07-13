@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { UtilsService } from '../utils/utils.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
 import {
@@ -12,7 +13,6 @@ import {
   GROUP_SIZE_OPTIONS_BY_TEAM_COUNT,
   LEAGUE_MAX_TEAMS,
   LEAGUE_MIN_TEAMS,
-  PLAYERS_PER_TEAM,
   VALID_TEAM_COUNTS,
 } from './dto/format-rules';
 import { DrawService } from './draw/draw.service';
@@ -51,6 +51,7 @@ export class TournamentsService {
     private readonly tournamentModel: Model<TournamentDocument>,
     private readonly drawService: DrawService,
     private readonly progressionService: MatchProgressionService,
+    private readonly utilsService: UtilsService,
   ) {}
 
   async create(
@@ -60,7 +61,7 @@ export class TournamentsService {
     this.validateTeamCountAndGroupSize(dto);
     this.validateThirdPlaceMatch(dto);
 
-    const perTeam = PLAYERS_PER_TEAM[dto.matchMode];
+    const perTeam = await this.validateConsolesAndMatchMode(dto);
     this.validatePlayersLength(dto, perTeam);
     const playersByTeamIndex = this.validateAssignments(dto, perTeam);
 
@@ -342,6 +343,40 @@ export class TournamentsService {
   }
 
   // --- Validation helpers (cross-field rules, hence not in the DTO) ------
+
+  /**
+   * Validates `dto.consoles` and `dto.matchMode` against the Mongo-backed
+   * catalogs (see UtilsService — the single source of truth for both,
+   * replacing the former `GameConsole`/`MatchMode` enums). Fetches the
+   * active console codes ONCE (not once per element of `dto.consoles`) and
+   * looks up `dto.matchMode` in a single query, returning its
+   * `playersPerTeam` for the caller to use in the rest of the cross-field
+   * validation (players length, assignments).
+   */
+  private async validateConsolesAndMatchMode(
+    dto: CreateTournamentDto,
+  ): Promise<number> {
+    const activeConsoleCodes = await this.utilsService.getActiveConsoleCodes();
+    const invalidConsoles = dto.consoles.filter(
+      (code) => !activeConsoleCodes.has(code),
+    );
+    if (invalidConsoles.length > 0) {
+      throw new BadRequestException(
+        `consoles contains invalid/inactive code(s): [${Array.from(new Set(invalidConsoles)).join(', ')}]`,
+      );
+    }
+
+    const matchMode = await this.utilsService.findActiveMatchMode(
+      dto.matchMode,
+    );
+    if (!matchMode) {
+      throw new BadRequestException(
+        `matchMode=${dto.matchMode} is not a valid/active match mode`,
+      );
+    }
+
+    return matchMode.playersPerTeam;
+  }
 
   private validateTeamCountAndGroupSize(dto: CreateTournamentDto): void {
     const { format, teamCount, groupSize } = dto;

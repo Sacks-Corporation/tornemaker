@@ -1,5 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { recordMatchResult } from './match-result.util';
@@ -24,7 +23,7 @@ describe('recordMatchResult — single leg, draws allowed (league/group)', () =>
     const outcome = recordMatchResult(
       match,
       { homeGoals: 2, awayGoals: 1 },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     );
 
     expect(outcome).toEqual({
@@ -37,7 +36,7 @@ describe('recordMatchResult — single leg, draws allowed (league/group)', () =>
     expect(match.winnerTeamId).toBe('home');
     expect(match.isDraw).toBe(false);
     expect(match.legs[0]).toMatchObject({
-      console: GameConsole.PLAY_5,
+      console: 'PLAY_5',
       homeGoals: 2,
       awayGoals: 1,
       wentToPenalties: false,
@@ -47,11 +46,7 @@ describe('recordMatchResult — single leg, draws allowed (league/group)', () =>
 
   it('lets the match stand as a draw with no winner', () => {
     const match = baseMatch();
-    recordMatchResult(
-      match,
-      { homeGoals: 1, awayGoals: 1 },
-      GameConsole.PLAY_5,
-    );
+    recordMatchResult(match, { homeGoals: 1, awayGoals: 1 }, 'PLAY_5');
 
     expect(match.status).toBe(MatchStatus.PLAYED);
     expect(match.isDraw).toBe(true);
@@ -65,35 +60,23 @@ describe('recordMatchResult — single leg, draws allowed (league/group)', () =>
       recordMatchResult(
         match,
         { homeGoals: 1, awayGoals: 1, penaltyWinnerTeamId: 'home' },
-        GameConsole.PLAY_5,
+        'PLAY_5',
       ),
     ).toThrow(BadRequestException);
   });
 
   it('is immutable: a second PATCH on an already-played match throws', () => {
     const match = baseMatch();
-    recordMatchResult(
-      match,
-      { homeGoals: 1, awayGoals: 0 },
-      GameConsole.PLAY_5,
-    );
+    recordMatchResult(match, { homeGoals: 1, awayGoals: 0 }, 'PLAY_5');
     expect(() =>
-      recordMatchResult(
-        match,
-        { homeGoals: 0, awayGoals: 1 },
-        GameConsole.PLAY_5,
-      ),
+      recordMatchResult(match, { homeGoals: 0, awayGoals: 1 }, 'PLAY_5'),
     ).toThrow(BadRequestException);
   });
 
   it('rejects recording a result when a team is not yet known', () => {
     const match = baseMatch({ awayTeamId: undefined });
     expect(() =>
-      recordMatchResult(
-        match,
-        { homeGoals: 1, awayGoals: 0 },
-        GameConsole.PLAY_5,
-      ),
+      recordMatchResult(match, { homeGoals: 1, awayGoals: 0 }, 'PLAY_5'),
     ).toThrow(BadRequestException);
   });
 });
@@ -102,11 +85,7 @@ describe('recordMatchResult — single leg, no draws allowed (swiss/knockout/thi
   it('requires penaltyWinnerTeamId when scores are level', () => {
     const match = baseMatch({ allowsPenalties: true });
     expect(() =>
-      recordMatchResult(
-        match,
-        { homeGoals: 1, awayGoals: 1 },
-        GameConsole.PLAY_5,
-      ),
+      recordMatchResult(match, { homeGoals: 1, awayGoals: 1 }, 'PLAY_5'),
     ).toThrow(BadRequestException);
   });
 
@@ -116,7 +95,7 @@ describe('recordMatchResult — single leg, no draws allowed (swiss/knockout/thi
       recordMatchResult(
         match,
         { homeGoals: 1, awayGoals: 1, penaltyWinnerTeamId: 'someone-else' },
-        GameConsole.PLAY_5,
+        'PLAY_5',
       ),
     ).toThrow(BadRequestException);
   });
@@ -126,7 +105,7 @@ describe('recordMatchResult — single leg, no draws allowed (swiss/knockout/thi
     const outcome = recordMatchResult(
       match,
       { homeGoals: 1, awayGoals: 1, penaltyWinnerTeamId: 'away' },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     );
 
     expect(outcome.winnerTeamId).toBe('away');
@@ -141,7 +120,7 @@ describe('recordMatchResult — single leg, no draws allowed (swiss/knockout/thi
     const outcome = recordMatchResult(
       match,
       { homeGoals: 3, awayGoals: 1 },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     );
     expect(outcome.winnerTeamId).toBe('home');
     expect(match.legs[0].wentToPenalties).toBe(false);
@@ -154,7 +133,7 @@ describe('recordMatchResult — two-legged ties', () => {
     const outcome = recordMatchResult(
       match,
       { homeGoals: 1, awayGoals: 1 },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     );
 
     expect(outcome).toEqual({
@@ -171,15 +150,11 @@ describe('recordMatchResult — two-legged ties', () => {
 
   it('leg 2 decides by aggregate when not level', () => {
     const match = baseMatch({ isTwoLegged: true, allowsPenalties: true });
-    recordMatchResult(
-      match,
-      { homeGoals: 1, awayGoals: 0 },
-      GameConsole.PLAY_5,
-    ); // ida: home 1-0
+    recordMatchResult(match, { homeGoals: 1, awayGoals: 0 }, 'PLAY_5'); // ida: home 1-0
     const outcome = recordMatchResult(
       match,
       { homeGoals: 0, awayGoals: 0 },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     ); // vuelta: home 0-0 (agg 1-0)
 
     expect(outcome.isResolved).toBe(true);
@@ -190,25 +165,16 @@ describe('recordMatchResult — two-legged ties', () => {
 
   it('leg 2 requires penalties when the aggregate is level', () => {
     const match = baseMatch({ isTwoLegged: true, allowsPenalties: true });
-    recordMatchResult(
-      match,
-      { homeGoals: 1, awayGoals: 0 },
-      GameConsole.PLAY_5,
-    ); // ida: home 1-0
+    recordMatchResult(match, { homeGoals: 1, awayGoals: 0 }, 'PLAY_5'); // ida: home 1-0
 
     expect(
-      () =>
-        recordMatchResult(
-          match,
-          { homeGoals: 0, awayGoals: 1 },
-          GameConsole.PLAY_5,
-        ), // agg 1-1
+      () => recordMatchResult(match, { homeGoals: 0, awayGoals: 1 }, 'PLAY_5'), // agg 1-1
     ).toThrow(BadRequestException);
 
     const outcome = recordMatchResult(
       match,
       { homeGoals: 0, awayGoals: 1, penaltyWinnerTeamId: 'away' },
-      GameConsole.PLAY_5,
+      'PLAY_5',
     );
     expect(outcome.winnerTeamId).toBe('away');
     expect(match.winnerTeamId).toBe('away');
@@ -217,25 +183,13 @@ describe('recordMatchResult — two-legged ties', () => {
 
   it('both legs are immutable once recorded', () => {
     const match = baseMatch({ isTwoLegged: true, allowsPenalties: true });
-    recordMatchResult(
-      match,
-      { homeGoals: 1, awayGoals: 0 },
-      GameConsole.PLAY_5,
-    );
+    recordMatchResult(match, { homeGoals: 1, awayGoals: 0 }, 'PLAY_5');
     expect(() =>
-      recordMatchResult(
-        match,
-        { homeGoals: 9, awayGoals: 9 },
-        GameConsole.PLAY_5,
-      ),
+      recordMatchResult(match, { homeGoals: 9, awayGoals: 9 }, 'PLAY_5'),
     ).not.toThrow(); // leg 2 is still open
 
     expect(() =>
-      recordMatchResult(
-        match,
-        { homeGoals: 1, awayGoals: 1 },
-        GameConsole.PLAY_5,
-      ),
+      recordMatchResult(match, { homeGoals: 1, awayGoals: 1 }, 'PLAY_5'),
     ).toThrow(BadRequestException); // both legs now recorded
   });
 });

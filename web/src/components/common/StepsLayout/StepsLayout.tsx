@@ -60,7 +60,13 @@ function StepsLayout({
         >
           {backLabel}
         </Button>
-        <Button type="button" variant="primary" onClick={onNext} disabled={nextDisabled || isNextLoading}>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={onNext}
+          disabled={nextDisabled || isNextLoading}
+          isLoading={isNextLoading}
+        >
           {nextLabel}
         </Button>
       </div>

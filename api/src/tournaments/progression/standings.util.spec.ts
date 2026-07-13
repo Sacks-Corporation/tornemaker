@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { Match } from '../schemas/common/match.schema';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import {
@@ -27,7 +26,7 @@ function playedMatch(
     isTwoLegged: false,
     legs: [
       {
-        console: GameConsole.PLAY_5,
+        console: 'PLAY_5',
         homeGoals,
         awayGoals,
         wentToExtraTime: false,

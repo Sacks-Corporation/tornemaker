@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
+import Spinner from '../Spinner'
 import type { SelectOption } from '../../../types/common.types'
 
 export interface SelectProps<T extends string = string> {
@@ -9,6 +10,8 @@ export interface SelectProps<T extends string = string> {
   onChange: (value: T) => void
   placeholder?: string
   disabled?: boolean
+  isLoading?: boolean
+  loadingLabel?: string
   name?: string
 }
 
@@ -19,6 +22,8 @@ function Select<T extends string = string>({
   onChange,
   placeholder,
   disabled,
+  isLoading = false,
+  loadingLabel,
   name,
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false)
@@ -26,6 +31,7 @@ function Select<T extends string = string>({
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const listboxId = useId()
+  const isDisabled = disabled || isLoading
 
   const selectedOption = options.find((option) => option.value === value) ?? null
   const hasValue = selectedOption !== null
@@ -59,7 +65,7 @@ function Select<T extends string = string>({
   }
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (disabled) return
+    if (isDisabled) return
 
     if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
       event.preventDefault()
@@ -98,36 +104,41 @@ function Select<T extends string = string>({
         <button
           type="button"
           name={name}
-          disabled={disabled}
+          disabled={isDisabled}
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listboxId}
+          aria-busy={isLoading || undefined}
           onClick={() => setOpen((prev) => !prev)}
           onKeyDown={handleTriggerKeyDown}
           className={[
             'flex w-full items-center justify-between rounded-lg border bg-surface px-3 py-2.5 text-left text-sm transition-colors duration-150',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background',
             open ? 'border-primary ring-2 ring-primary/30' : 'border-border',
-            disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary',
+            isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary',
             hasValue ? 'text-text' : 'text-text-muted',
           ].join(' ')}
         >
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className={`ml-2 h-4 w-4 shrink-0 text-primary transition-transform duration-150 ${
-              open ? 'rotate-180' : ''
-            }`}
-            aria-hidden="true"
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.24-4.5a.75.75 0 0 1 .02-1.06Z"
-              clipRule="evenodd"
-            />
-          </svg>
+          {isLoading ? (
+            <Spinner size="sm" label={loadingLabel} className="ml-2 text-primary" />
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`ml-2 h-4 w-4 shrink-0 text-primary transition-transform duration-150 ${
+                open ? 'rotate-180' : ''
+              }`}
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.24-4.5a.75.75 0 0 1 .02-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          )}
         </button>
 
         {open && (

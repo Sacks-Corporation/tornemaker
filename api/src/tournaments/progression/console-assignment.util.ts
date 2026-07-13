@@ -1,4 +1,3 @@
-import { GameConsole } from '../schemas/common/console.enum';
 import { GroupStage } from '../schemas/group-stage.schema';
 import { KnockoutStage } from '../schemas/knockout-stage.schema';
 import { LeagueStage } from '../schemas/league.schema';
@@ -73,7 +72,7 @@ export class ConsoleAssigner {
   private nextIndex: number;
 
   constructor(
-    private readonly consoleUnits: GameConsole[],
+    private readonly consoleUnits: string[],
     alreadyAssignedCount: number,
   ) {
     if (consoleUnits.length === 0) {
@@ -82,8 +81,8 @@ export class ConsoleAssigner {
     this.nextIndex = alreadyAssignedCount % consoleUnits.length;
   }
 
-  /** Assigns (and returns) the next console in the rotation. */
-  next(): GameConsole {
+  /** Assigns (and returns) the next console `code` in the rotation. */
+  next(): string {
     const console_ =
       this.consoleUnits[this.nextIndex % this.consoleUnits.length];
     this.nextIndex++;
@@ -98,7 +97,7 @@ export class ConsoleAssigner {
 export function ensureAssignedConsole(
   match: Match,
   assigner: ConsoleAssigner,
-): GameConsole {
+): string {
   if (!match.assignedConsole) {
     match.assignedConsole = assigner.next();
   }

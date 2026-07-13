@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
+import { UtilsService } from '../utils/utils.service';
 import { buildGroupStage } from './draw/group-fixtures';
 import { buildKnockoutStage } from './draw/knockout-fixtures';
 import { buildLeagueStage } from './draw/league-fixtures';
@@ -7,8 +8,6 @@ import { buildSwissStage } from './draw/swiss-fixtures';
 import { DrawService } from './draw/draw.service';
 import { makeSeededTeams } from './draw/test-helpers';
 import { MatchProgressionService } from './progression/match-progression.service';
-import { GameConsole } from './schemas/common/console.enum';
-import { MatchMode } from './schemas/common/match-mode.enum';
 import { MatchStatus } from './schemas/common/match-status.enum';
 import { Team } from './schemas/common/team.schema';
 import { TournamentFormat } from './schemas/common/tournament-format.enum';
@@ -43,9 +42,9 @@ function baseTournament(
     ownerId,
     name: 'Test tournament',
     status: TournamentStatus.EN_PROGRESO,
-    matchMode: MatchMode.ONE_VS_ONE,
-    consoleUnits: [GameConsole.PLAY_5],
-    allowedConsoles: [GameConsole.PLAY_5],
+    matchMode: '1v1',
+    consoleUnits: ['PLAY_5'],
+    allowedConsoles: ['PLAY_5'],
     teams: [],
     save: saveSpy,
     ...overrides,
@@ -59,10 +58,14 @@ function baseTournament(
 function makeService(tournament: TournamentDocument | null) {
   const findOne = jest.fn().mockResolvedValue(tournament);
   const model = { findOne } as unknown as Model<TournamentDocument>;
+  // None of the specs below exercise `create()`, so UtilsService is never
+  // actually called — a bare stub satisfies the constructor's dependency.
+  const utilsService = {} as UtilsService;
   const service = new TournamentsService(
     model,
     new DrawService(),
     new MatchProgressionService(),
+    utilsService,
   );
   return { service, findOne };
 }

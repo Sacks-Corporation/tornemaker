@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { GameConsole } from './console.enum';
 
 /**
  * The final outcome of a single leg (one played match), independent of the
@@ -14,8 +13,9 @@ import { GameConsole } from './console.enum';
  */
 @Schema({ _id: false })
 export class MatchResult {
-  @Prop({ type: String, enum: GameConsole, required: true })
-  console: GameConsole;
+  /** `code` of the console this leg was played on (see `consoles` catalog / UtilsService). */
+  @Prop({ type: String, required: true })
+  console: string;
 
   /** Regulation-time (90 min) goals for the home side of this leg. */
   @Prop({ required: true, min: 0 })

@@ -15,8 +15,6 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { GameConsole } from '../schemas/common/console.enum';
-import { MatchMode } from '../schemas/common/match-mode.enum';
 import { TournamentFormat } from '../schemas/common/tournament-format.enum';
 import { TeamAssignmentDto } from './team-assignment.dto';
 
@@ -45,6 +43,12 @@ function trimStringArrayIfArray({ value }: TransformFnParams): unknown {
  * validated in the service layer against `dto/format-rules.ts` — those
  * constraints are inherently cross-field and don't fit class-validator's
  * per-property model cleanly.
+ *
+ * `consoles` and `matchMode` are plain, non-empty strings here (NOT
+ * `@IsEnum`): the Mongo-backed `consoles`/`matchmodes` catalogs (see
+ * `UtilsService`) are the single source of truth for which `code`s are
+ * valid, so membership is checked in the service layer against the active
+ * catalog entries instead of a closed TypeScript enum.
  */
 export class CreateTournamentDto {
   @Transform(trimIfString)
@@ -59,8 +63,10 @@ export class CreateTournamentDto {
   @Min(1)
   teamCount: number;
 
-  @IsEnum(MatchMode)
-  matchMode: MatchMode;
+  /** Must be an active `code` in the `matchmodes` catalog (see UtilsService). */
+  @IsString()
+  @IsNotEmpty()
+  matchMode: string;
 
   @IsBoolean()
   twoLegged: boolean;
@@ -74,11 +80,13 @@ export class CreateTournamentDto {
   @IsIn([3, 4, 5])
   groupSize?: number;
 
+  /** Each entry must be an active `code` in the `consoles` catalog (see UtilsService). */
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(20)
-  @IsEnum(GameConsole, { each: true })
-  consoles: GameConsole[];
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  consoles: string[];
 
   @IsArray()
   @ArrayNotEmpty()

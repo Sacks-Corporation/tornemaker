@@ -23,7 +23,13 @@ function ResetTournamentModal({ isSubmitting, onClose, onConfirm }: ResetTournam
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {t('tournament.tournamentPage.resetModal.cancel')}
           </Button>
-          <Button type="button" variant="primary" onClick={onConfirm} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onConfirm}
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
             {isSubmitting
               ? t('tournament.tournamentPage.resetModal.confirming')
               : t('tournament.tournamentPage.resetModal.confirm')}
