@@ -39,10 +39,14 @@ function Logo({ variant, alt, className = '' }: LogoProps) {
   // ese hook no comparte estado entre instancias y quedaría desincronizado
   // con el toggle del Header hasta un remount. Ambas imágenes están siempre
   // en el DOM y se alterna su visibilidad con clases `dark:`.
+  // Los assets de `public/` se referencian con BASE_URL en vez de una ruta
+  // absoluta: en GitHub Pages el sitio vive bajo /tornemaker/, así que "/logo-light.svg"
+  // apuntaría fuera del sitio y la imagen quedaría rota.
+  const base = import.meta.env.BASE_URL
   return (
     <>
-      <img src="/logo-light.svg" alt={alt} className={`${className} dark:hidden`} />
-      <img src="/logo-dark.svg" alt={alt} className={`${className} hidden dark:block`} />
+      <img src={`${base}logo-light.svg`} alt={alt} className={`${className} dark:hidden`} />
+      <img src={`${base}logo-dark.svg`} alt={alt} className={`${className} hidden dark:block`} />
     </>
   )
 }
