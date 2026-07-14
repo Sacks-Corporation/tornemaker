@@ -44,6 +44,10 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-])
+], {
+  // BASE_URL toma el valor de `base` en vite.config.ts ('/tornemaker/' en el
+  // build de GitHub Pages, '/' en dev), así las rutas funcionan en ambos.
+  basename: import.meta.env.BASE_URL,
+})
 
 export default router
