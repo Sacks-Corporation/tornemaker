@@ -52,7 +52,15 @@ function placeholderMatch(isTwoLegged: boolean): Match {
  * equals `drawSize / 2` (proof: byeCount = drawSize - teamCount, winners =
  * (teamCount - byeCount) / 2, so byeCount + winners = drawSize / 2 exactly).
  * That's why the round right after the preliminary round always starts a
- * perfectly clean power-of-two bracket of size `drawSize / 2`.
+ * perfectly clean power-of-two bracket of size `drawSize / 2`, REGARDLESS of
+ * how byeCount and preliminaryWinners individually split that total — which
+ * matters now that `teamCount` is a free range instead of a hand-picked
+ * closed set: byeCount can be smaller than the number of first-main-round
+ * matches (e.g. teamCount=7 or 15), so some of those matches end up being
+ * fought entirely between two preliminary-round winners, with no bye
+ * involved at all — see the "flat entrants list" comment inside the
+ * `hasPreliminaryRound` branch below, and its counterpart in
+ * `progression/bracket-advance.util.ts#advanceWinnerInBracket`.
  */
 export function buildKnockoutStage(
   teams: SeededTeam[],
@@ -95,21 +103,33 @@ export function buildKnockoutStage(
 
     firstMainSize = drawSize / 2;
     const mainMatchCount = firstMainSize / 2;
-    const winnersCount = prelimMatches.length;
+
+    // Flat list of the `firstMainSize` entrants of the first main round:
+    // the `byeCount` bye teams (already known) FIRST, followed by one
+    // `undefined` placeholder per preliminary match (its winner, TBD until
+    // that match is played — filled in later by
+    // `bracket-advance.util.ts#advanceWinnerInBracket`, which uses this
+    // EXACT same "byes first, then one slot per preliminary match, in
+    // order" layout to compute where each preliminary winner lands).
+    // Pairing this flat list 2-by-2 into `mainMatchCount` matches generically
+    // covers every possible byeCount/winnersCount split — including byes
+    // facing each other directly (byeCount > mainMatchCount, e.g. 20 teams),
+    // two preliminary winners facing each other with no bye involved at all
+    // (byeCount < mainMatchCount, e.g. 7 or 15 teams — this is the case the
+    // OLD "one bye waits for one preliminary winner, same index" version of
+    // this function got wrong, since it silently assumed byeCount was always
+    // >= mainMatchCount), and everything in between.
+    const flatEntrants: Array<string | undefined> = [
+      ...byeTeamIds,
+      ...prelimMatches.map(() => undefined),
+    ];
 
     firstMainRoundSlots = [];
     for (let m = 0; m < mainMatchCount; m++) {
-      if (m < winnersCount) {
-        // One bye team waits for the winner of preliminary match `m`.
-        firstMainRoundSlots.push({ home: byeTeamIds[m], away: undefined });
-      } else {
-        // No preliminary winner left for this slot: two byes face off directly.
-        const idx = winnersCount + 2 * (m - winnersCount);
-        firstMainRoundSlots.push({
-          home: byeTeamIds[idx],
-          away: byeTeamIds[idx + 1],
-        });
-      }
+      firstMainRoundSlots.push({
+        home: flatEntrants[2 * m],
+        away: flatEntrants[2 * m + 1],
+      });
     }
   } else {
     firstMainSize = drawSize;

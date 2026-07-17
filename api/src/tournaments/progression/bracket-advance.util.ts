@@ -6,23 +6,25 @@ import { MatchStatus } from '../schemas/common/match-status.enum';
  * loser) into the correct slot of the following structure. Mutates
  * `bracket` in place.
  *
- * Two distinct feeding rules coexist, matching exactly how
- * `draw/knockout-fixtures.ts` originally laid the bracket out:
- *
- *   1. Preliminary round (`roundIndex === 0` when `bracket.hasPreliminaryRound`):
- *      every preliminary match's winner fills the AWAY slot of the main
- *      round's match at the SAME index (the HOME slot there is always
- *      already occupied by a bye team — see the worked byes/preliminary
- *      round design in bracket.schema.ts and the slot-building code in
- *      knockout-fixtures.ts). This is intentionally NOT `floor(i/2)`.
- *
- *   2. Every other round transition (including main-round-1 -> quarters,
- *      quarters -> semis, semis -> final): the generic single-elimination
- *      positional rule — match `i` feeds match `floor(i/2)` of the next
- *      round, as the HOME side if `i` is even, AWAY if `i` is odd. This is
- *      correct here because every round after the first main round is built
- *      as a clean, unseeded placeholder bracket (see knockout-fixtures.ts),
- *      so nothing else dictates a different pairing.
+ * A single generic positional rule feeds every round transition, matching
+ * exactly how `draw/knockout-fixtures.ts` lays the bracket out: match `i` of
+ * a round feeds match `floor(virtualIndex / 2)` of the next round, as the
+ * HOME side if `virtualIndex` is even, AWAY if odd — where:
+ *   - For every round EXCEPT the preliminary round, `virtualIndex = i`
+ *     directly: every round after the first main round is built as a clean,
+ *     unseeded placeholder bracket (see knockout-fixtures.ts), so nothing
+ *     else dictates a different pairing.
+ *   - For the preliminary round specifically (`roundIndex === 0` when
+ *     `bracket.hasPreliminaryRound`), `virtualIndex = bracket.byeTeamIds.length + i`.
+ *     This offset exists because `knockout-fixtures.ts` lays the first main
+ *     round's `firstMainSize` entrants out as a flat list — the
+ *     `byeTeamIds.length` bye teams FIRST (already known, filled in
+ *     directly), THEN one pending-winner slot per preliminary match, in
+ *     order — before pairing that flat list 2-by-2 into matches. Using the
+ *     bye count as an offset before applying the exact same floor(i/2)/
+ *     parity rule reproduces that layout generically, for ANY split between
+ *     byes and preliminary matches (some main-round matches may end up bye
+ *     vs bye, bye vs winner, or winner vs winner — see knockout-fixtures.ts).
  *
  * Additionally:
  *   - When `roundIndex` is the semifinal round (the second-to-last round)
@@ -58,18 +60,16 @@ export function advanceWinnerInBracket(
 
   const nextRound = bracket.rounds[roundIndex + 1];
   const feedsFromPreliminary = roundIndex === 0 && bracket.hasPreliminaryRound;
+  const virtualIndex = feedsFromPreliminary
+    ? bracket.byeTeamIds.length + matchIndex
+    : matchIndex;
 
-  if (feedsFromPreliminary) {
-    // Identity mapping, always into the away slot (see doc above).
-    nextRound.matches[matchIndex].awayTeamId = winnerTeamId;
+  const nextMatchIndex = Math.floor(virtualIndex / 2);
+  const nextMatch = nextRound.matches[nextMatchIndex];
+  if (virtualIndex % 2 === 0) {
+    nextMatch.homeTeamId = winnerTeamId;
   } else {
-    const nextMatchIndex = Math.floor(matchIndex / 2);
-    const nextMatch = nextRound.matches[nextMatchIndex];
-    if (matchIndex % 2 === 0) {
-      nextMatch.homeTeamId = winnerTeamId;
-    } else {
-      nextMatch.awayTeamId = winnerTeamId;
-    }
+    nextMatch.awayTeamId = winnerTeamId;
   }
 }
 

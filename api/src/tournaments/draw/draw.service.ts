@@ -18,8 +18,12 @@ export interface DrawOptions {
   format: TournamentFormat;
   twoLegged: boolean;
   thirdPlaceMatch: boolean;
-  /** Required (and pre-validated) only for GROUP_STAGE_PLUS_ELIMINATION. */
-  groupSize?: number;
+  /**
+   * Required (and pre-validated against `dto/format-rules.ts#computeGroupDistribution`)
+   * only for GROUP_STAGE_PLUS_ELIMINATION — the MAX size of any group, not a
+   * uniform/exact size. See group-stage.schema.ts.
+   */
+  groupCap?: number;
 }
 
 export interface DrawResult {
@@ -79,7 +83,7 @@ export class DrawService {
           teams,
           groupStage: buildGroupStage(
             seededTeams,
-            options.groupSize as number,
+            options.groupCap as number,
             options.twoLegged,
           ),
           standaloneThirdPlaceMatch: options.thirdPlaceMatch

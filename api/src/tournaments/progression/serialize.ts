@@ -148,6 +148,7 @@ export interface SerializedTournament {
   matchMode: string;
   consoleUnits: string[];
   allowedConsoles: string[];
+  aiFill: boolean;
   teams: Array<{ teamId: string; name: string; playerNames: string[] }>;
   leagueStage?: {
     doubleRound: boolean;
@@ -159,10 +160,12 @@ export interface SerializedTournament {
     tiebreakMatches: SerializedMatch[];
   };
   groupStage?: {
-    groupSize: number;
+    groupCap: number;
     doubleRound: boolean;
     groups: ReturnType<typeof serializeGroup>[];
+    /** @deprecated Vestigial, always 0/[] now — see GroupStage schema doc. */
     bestThirdPlaceSlots: number;
+    /** @deprecated Vestigial, always 0/[] now — see GroupStage schema doc. */
     qualifiedThirdPlaceTeamIds: string[];
   };
   swissStage?: {
@@ -240,6 +243,7 @@ export function serializeTournament(
     matchMode: tournament.matchMode,
     consoleUnits: tournament.consoleUnits,
     allowedConsoles: tournament.allowedConsoles,
+    aiFill: tournament.aiFill ?? false,
     teams: tournament.teams.map((t) => ({
       teamId: t.teamId.toString(),
       name: t.name,
@@ -262,7 +266,7 @@ export function serializeTournament(
       : undefined,
     groupStage: tournament.groupStage
       ? {
-          groupSize: tournament.groupStage.groupSize,
+          groupCap: tournament.groupStage.groupCap,
           doubleRound: tournament.groupStage.doubleRound,
           groups: tournament.groupStage.groups.map(serializeGroup),
           bestThirdPlaceSlots: tournament.groupStage.bestThirdPlaceSlots,

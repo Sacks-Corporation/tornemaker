@@ -2,13 +2,13 @@ import { buildGroupStage } from './group-fixtures';
 import { makeSeededTeams } from './test-helpers';
 
 describe('buildGroupStage', () => {
-  it('distributes 12 teams into 3 groups of 4 with 2 best-third slots', () => {
+  it('distributes 12 teams into 3 clean groups of 4 (12/C4)', () => {
     const teams = makeSeededTeams(12);
     const stage = buildGroupStage(teams, 4, false);
 
-    expect(stage.groupSize).toBe(4);
+    expect(stage.groupCap).toBe(4);
     expect(stage.groups).toHaveLength(3);
-    expect(stage.bestThirdPlaceSlots).toBe(2);
+    expect(stage.bestThirdPlaceSlots).toBe(0);
     expect(stage.qualifiedThirdPlaceTeamIds).toEqual([]);
 
     expect(stage.groups.map((g) => g.name)).toEqual([
@@ -34,12 +34,28 @@ describe('buildGroupStage', () => {
     }
   });
 
-  it('does not need best-third slots when direct qualifiers already form a power of two (8/4)', () => {
-    const teams = makeSeededTeams(8);
+  it('balances an uneven split (10/C4 -> [4, 3, 3], never [4, 4, 2])', () => {
+    const teams = makeSeededTeams(10);
+    const stage = buildGroupStage(teams, 4, false);
+
+    expect(stage.groups).toHaveLength(3);
+    expect(stage.groups.map((g) => g.teamIds.length)).toEqual([4, 3, 3]);
+
+    const allTeamIds = stage.groups.flatMap((g) => g.teamIds);
+    expect(new Set(allTeamIds).size).toBe(10);
+  });
+
+  it('balances an uneven split (7/C4 -> [4, 3])', () => {
+    const teams = makeSeededTeams(7);
     const stage = buildGroupStage(teams, 4, false);
 
     expect(stage.groups).toHaveLength(2);
-    expect(stage.bestThirdPlaceSlots).toBe(0);
+    expect(stage.groups.map((g) => g.teamIds.length)).toEqual([4, 3]);
+  });
+
+  it('throws when the teamCount/groupCap combination is not a valid distribution (10/C3)', () => {
+    const teams = makeSeededTeams(10);
+    expect(() => buildGroupStage(teams, 3, false)).toThrow();
   });
 
   it('doubles the fixtures (separate single-leg matches) when twoLegged is requested', () => {

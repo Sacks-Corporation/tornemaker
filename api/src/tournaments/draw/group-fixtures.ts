@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { computeBestThirdPlaceSlots } from '../dto/format-rules';
+import { computeGroupDistribution } from '../dto/format-rules';
 import { MatchStatus } from '../schemas/common/match-status.enum';
 import { Match } from '../schemas/common/match.schema';
 import { Standing } from '../schemas/common/standing.schema';
@@ -58,22 +58,45 @@ function buildGroupMatches(ids: string[], twoLegged: boolean): Match[] {
 
 /**
  * Builds the GROUP_STAGE_PLUS_ELIMINATION group stage: distributes the
- * already-shuffled teams into contiguous groups of `groupSize` ("Grupo A",
- * "Grupo B", ...), round-robins each group (single or double per
- * `twoLegged`), and computes `bestThirdPlaceSlots` so the future knockout
- * bracket (built once this stage finishes — NOT here, see
- * group-stage.schema.ts) closes on a clean power of two.
+ * already-shuffled teams into contiguous groups ("Grupo A", "Grupo B", ...)
+ * sized per `computeGroupDistribution(teams.length, groupCap)` (balanced,
+ * every group capped at `groupCap`, sizes differing by at most 1 — see that
+ * function's doc for the algorithm), then round-robins each group (single or
+ * double per `twoLegged`).
+ *
+ * ONLY the top 2 of every group qualify for the knockout stage — there is no
+ * "best third-placed teams" mechanism anymore (removed together with
+ * `bestThirdPlaceSlots`/`computeBestThirdPlaceSlots`): when
+ * `2 * groupCount` isn't a power of two, the follow-up knockout bracket is
+ * resolved with byes/a preliminary round instead (same generic mechanism as
+ * SINGLE_ELIMINATION — see draw/knockout-fixtures.ts and
+ * progression/match-progression.service.ts#finishGroupStage).
+ *
+ * `teams.length` and `groupCap` are assumed already validated (by the same
+ * `computeGroupDistribution` call, at the service layer) to form a valid
+ * distribution; this throws if that invariant was violated by the caller.
  */
 export function buildGroupStage(
   teams: SeededTeam[],
-  groupSize: number,
+  groupCap: number,
   twoLegged: boolean,
 ): GroupStage {
-  const groupCount = teams.length / groupSize;
-  const groups: Group[] = [];
+  const distribution = computeGroupDistribution(teams.length, groupCap);
+  if (!distribution.valid) {
+    throw new Error(
+      `buildGroupStage: invalid team/group distribution — ${distribution.reason}`,
+    );
+  }
+  const { groupSizes } = distribution;
 
-  for (let g = 0; g < groupCount; g++) {
-    const groupTeams = teams.slice(g * groupSize, (g + 1) * groupSize);
+  const groups: Group[] = [];
+  let offset = 0;
+
+  for (let g = 0; g < groupSizes.length; g++) {
+    const size = groupSizes[g];
+    const groupTeams = teams.slice(offset, offset + size);
+    offset += size;
+
     const ids = groupTeams.map((t) => t.hexId);
     const letter = GROUP_LETTERS[g];
 
@@ -99,10 +122,13 @@ export function buildGroupStage(
   }
 
   return {
-    groupSize,
+    groupCap,
     doubleRound: twoLegged,
     groups,
-    bestThirdPlaceSlots: computeBestThirdPlaceSlots(groupCount),
+    // Vestigial — always 0/[] for newly-built stages, kept only so
+    // historical documents (pre-dynamic-team-count) keep serializing with
+    // the same shape. See GroupStage schema doc.
+    bestThirdPlaceSlots: 0,
     qualifiedThirdPlaceTeamIds: [],
   };
 }

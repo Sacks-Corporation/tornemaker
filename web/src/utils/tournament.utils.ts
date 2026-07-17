@@ -139,13 +139,26 @@ export const getWizardStepMeta = (
   return { currentStep: index >= 0 ? index + 1 : 1, totalSteps: visibleSteps.length }
 }
 
+// Formatos que reemplazan el Select cerrado de "cantidad de equipos" por un
+// input numérico libre, muestran "Tope de equipos por grupo" (solo
+// GROUP_STAGE_PLUS_ELIMINATION) y pueden ofrecer el switch de relleno con IA.
+// LEAGUE y SWISS_PLUS_ELIMINATION quedan fuera de alcance de este cambio.
+export const FREE_TEAM_COUNT_FORMATS: readonly TournamentFormat[] = [
+  'SINGLE_ELIMINATION',
+  'GROUP_STAGE_PLUS_ELIMINATION',
+]
+
+export const usesFreeTeamCountInput = (format: TournamentFormat | null): boolean =>
+  format !== null && FREE_TEAM_COUNT_FORMATS.includes(format)
+
 // Arma el body de POST /tournaments a partir del estado persistido del wizard.
 // Asume que el estado ya fue validado (todos los campos requeridos completos).
 export const buildTournamentPayload = (
   wizard: NewTournamentWizardData,
 ): CreateTournamentPayload => {
   const format = wizard.format as TournamentFormat
-  const includesGroupSize = format === 'GROUP_STAGE_PLUS_ELIMINATION'
+  const includesGroupCap = format === 'GROUP_STAGE_PLUS_ELIMINATION'
+  const includesAiFill = usesFreeTeamCountInput(format)
 
   return {
     name: wizard.name.trim(),
@@ -154,7 +167,8 @@ export const buildTournamentPayload = (
     matchMode: wizard.matchMode as MatchModeCode,
     twoLegged: wizard.twoLegged ?? false,
     thirdPlaceMatch: format === 'LEAGUE' ? false : (wizard.thirdPlaceMatch ?? false),
-    ...(includesGroupSize ? { groupSize: wizard.groupSize as number } : {}),
+    ...(includesGroupCap ? { groupCap: wizard.groupCap as number } : {}),
+    ...(includesAiFill ? { aiFill: wizard.aiFill } : {}),
     consoles: wizard.consoles,
     teams: wizard.teams.map((team) => team.trim()),
     players: getFilledNames(wizard.players),
@@ -165,6 +179,93 @@ export const buildTournamentPayload = (
       }))
       .filter((assignment) => assignment.players.length > 0),
   }
+}
+
+// --------------------------------------------------------------------------
+// Preview de configuración para ParameterStep (réplica en el front del
+// cálculo que hace la API en `dto/format-rules.ts`, SOLO para render — la
+// API vuelve a calcular y valida todo del lado del servidor). Genérico por
+// rangos, sin tablas hardcodeadas por valor puntual.
+
+// Menor potencia de 2 >= n.
+export const nextPowerOfTwo = (n: number): number => {
+  let power = 1
+  while (power < n) power *= 2
+  return power
+}
+
+export interface EliminationPreview {
+  drawSize: number
+  hasPreliminaryRound: boolean
+  // Equipos que juegan la ronda preliminar (siempre un número par).
+  preliminaryTeamCount: number
+  // Equipos que pasan directo a la siguiente ronda (byes).
+  byeCount: number
+}
+
+// Réplica del armado de cuadro de SINGLE_ELIMINATION: si `teamCount` no es
+// potencia de 2, arma una ronda preliminar + byes hasta la próxima potencia
+// de 2 (drawSize). Ej: N=15 -> drawSize=16, 14 juegan preliminar, 1 bye.
+export const computeEliminationPreview = (teamCount: number): EliminationPreview => {
+  const drawSize = nextPowerOfTwo(teamCount)
+  const hasPreliminaryRound = drawSize !== teamCount
+
+  if (!hasPreliminaryRound) {
+    return { drawSize, hasPreliminaryRound, preliminaryTeamCount: 0, byeCount: 0 }
+  }
+
+  const halfDraw = drawSize / 2
+  const preliminaryTeamCount = 2 * (teamCount - halfDraw)
+  const byeCount = halfDraw - (teamCount - halfDraw)
+  return { drawSize, hasPreliminaryRound, preliminaryTeamCount, byeCount }
+}
+
+// Cantidad total de equipos (reales + IA) para SINGLE_ELIMINATION cuando
+// `aiFill` está activo: la próxima potencia de 2 >= `realCount`, sin superar
+// el máximo del formato.
+export const computeEliminationAiFillTeamCount = (realCount: number, maxTeams: number): number =>
+  Math.min(nextPowerOfTwo(realCount), maxTeams)
+
+export type GroupDistributionPreview =
+  | { valid: true; groupCount: number; groupSizes: number[] }
+  | { valid: false }
+
+// Réplica de `computeGroupDistribution` de la API: distribución balanceada de
+// `teamCount` equipos en grupos de a lo sumo `groupCap` equipos cada uno.
+// Válida solo si `groupCount >= 2` y `teamCount >= 3 * groupCount`.
+export const computeGroupDistributionPreview = (
+  teamCount: number,
+  groupCap: number,
+): GroupDistributionPreview => {
+  if (!Number.isInteger(teamCount) || !Number.isInteger(groupCap) || teamCount <= 0 || groupCap <= 0) {
+    return { valid: false }
+  }
+
+  const groupCount = Math.ceil(teamCount / groupCap)
+  if (groupCount < 2 || teamCount < 3 * groupCount) {
+    return { valid: false }
+  }
+
+  const base = Math.floor(teamCount / groupCount)
+  const remainder = teamCount % groupCount
+  const groupSizes = [
+    ...Array<number>(remainder).fill(base + 1),
+    ...Array<number>(groupCount - remainder).fill(base),
+  ]
+
+  return { valid: true, groupCount, groupSizes }
+}
+
+// Cantidad total de equipos (reales + IA) para GROUP_STAGE_PLUS_ELIMINATION
+// cuando `aiFill` está activo: la próxima múltiplo de `groupCap` >=
+// `realCount`, sin superar el máximo del formato.
+export const computeGroupStageAiFillTeamCount = (
+  realCount: number,
+  groupCap: number,
+  maxTeams: number,
+): number => {
+  const nextMultiple = Math.ceil(realCount / groupCap) * groupCap
+  return Math.min(nextMultiple, maxTeams)
 }
 
 // --------------------------------------------------------------------------

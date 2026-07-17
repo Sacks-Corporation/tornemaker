@@ -3,10 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
   FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED,
-  GROUP_SIZE_OPTIONS_BY_TEAM_COUNT,
-  LEAGUE_MAX_TEAMS,
-  LEAGUE_MIN_TEAMS,
-  VALID_TEAM_COUNTS,
+  GROUP_CAP_MIN,
+  SWISS_TEAM_COUNTS,
+  TEAM_RANGE_BY_FORMAT,
 } from '../tournaments/dto/format-rules';
 import { TournamentFormat } from '../tournaments/schemas/common/tournament-format.enum';
 import {
@@ -34,11 +33,33 @@ export interface MatchModeCatalogItem {
   sortOrder: number;
 }
 
-/** Shape of a single item returned by `GET /utils/tournament-formats`. */
+/**
+ * Shape of a single item returned by `GET /utils/tournament-formats`.
+ *
+ * CONTRACT WITH THE FRONTEND — do not change without coordinating there:
+ *   - `teamRange`: present for the formats that accept a free `teamCount`
+ *     integer within `[min, max]` (RANGE-based, not a closed set):
+ *     SINGLE_ELIMINATION `{min:4,max:64}`, GROUP_STAGE_PLUS_ELIMINATION
+ *     `{min:6,max:64}`, LEAGUE `{min:4,max:30}`. Absent for
+ *     SWISS_PLUS_ELIMINATION.
+ *   - `teamCounts`: present ONLY for SWISS_PLUS_ELIMINATION — its closed,
+ *     hand-picked set of supported `teamCount` values (unchanged by the
+ *     dynamic-team-count work). Absent for every other format.
+ *   - `groupCap`: present ONLY for GROUP_STAGE_PLUS_ELIMINATION —
+ *     `{min: 3}`, the minimum allowed max-teams-per-group. There is no
+ *     `max`: any `groupCap >= 3` is accepted as long as the resulting
+ *     `teamCount`/`groupCap` combination passes
+ *     `dto/format-rules.ts#computeGroupDistribution` at creation time.
+ *   - `allowsAi`: whether `CreateTournamentDto.aiFill` may be `true` for
+ *     this format (SINGLE_ELIMINATION, GROUP_STAGE_PLUS_ELIMINATION only).
+ *   - `allowsThirdPlace`: whether `CreateTournamentDto.thirdPlaceMatch` may
+ *     be `true` for this format (every format except LEAGUE).
+ */
 export interface TournamentFormatRule {
   format: TournamentFormat;
-  teamCounts: number[];
-  groupSizesByTeamCount?: Record<number, number[]>;
+  teamRange?: { min: number; max: number };
+  teamCounts?: number[];
+  groupCap?: { min: number };
   allowsAi: boolean;
   allowsThirdPlace: boolean;
 }
@@ -142,10 +163,11 @@ export class UtilsService implements OnModuleInit {
   }
 
   /**
-   * `GET /utils/tournament-formats` — NOT backed by Mongo: the closed
-   * team-count / group-size rules are coupled to the draw engine and only
-   * change with a deploy (see dto/format-rules.ts, the single source of
-   * truth this transforms rather than duplicates).
+   * `GET /utils/tournament-formats` — NOT backed by Mongo: the team-count
+   * range / group-cap rules are coupled to the draw engine and only change
+   * with a deploy (see dto/format-rules.ts, the single source of truth this
+   * transforms rather than duplicates). See `TournamentFormatRule` above for
+   * the exact response contract.
    */
   getTournamentFormats(format?: TournamentFormat): TournamentFormatRule[] {
     const formats = format ? [format] : Object.values(TournamentFormat);
@@ -155,41 +177,18 @@ export class UtilsService implements OnModuleInit {
   private buildTournamentFormatRule(
     format: TournamentFormat,
   ): TournamentFormatRule {
+    const isSwiss = format === TournamentFormat.SWISS_PLUS_ELIMINATION;
+    const isGroupStage =
+      format === TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION;
+
     return {
       format,
-      teamCounts: this.teamCountsFor(format),
-      groupSizesByTeamCount: this.groupSizesByTeamCountFor(format),
+      teamRange: isSwiss ? undefined : { ...TEAM_RANGE_BY_FORMAT[format]! },
+      teamCounts: isSwiss ? [...SWISS_TEAM_COUNTS] : undefined,
+      groupCap: isGroupStage ? { min: GROUP_CAP_MIN } : undefined,
       allowsAi: !FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED.includes(format),
       allowsThirdPlace: format !== TournamentFormat.LEAGUE,
     };
-  }
-
-  private teamCountsFor(format: TournamentFormat): number[] {
-    if (format === TournamentFormat.LEAGUE) {
-      const counts: number[] = [];
-      for (let n = LEAGUE_MIN_TEAMS; n <= LEAGUE_MAX_TEAMS; n++) {
-        counts.push(n);
-      }
-      return counts;
-    }
-    return [...(VALID_TEAM_COUNTS[format] ?? [])];
-  }
-
-  private groupSizesByTeamCountFor(
-    format: TournamentFormat,
-  ): Record<number, number[]> | undefined {
-    if (format !== TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION) {
-      return undefined;
-    }
-    const teamCounts = VALID_TEAM_COUNTS[format] ?? [];
-    const byTeamCount: Record<number, number[]> = {};
-    for (const teamCount of teamCounts) {
-      const sizes = GROUP_SIZE_OPTIONS_BY_TEAM_COUNT[teamCount];
-      if (sizes) {
-        byTeamCount[teamCount] = [...sizes];
-      }
-    }
-    return byTeamCount;
   }
 
   // --- Catalog-membership validation (used by TournamentsService) -------

@@ -1,3 +1,5 @@
+import { MatchStatus } from '../schemas/common/match-status.enum';
+import { advanceWinnerInBracket } from '../progression/bracket-advance.util';
 import { buildKnockoutStage } from './knockout-fixtures';
 import { makeSeededTeams } from './test-helpers';
 
@@ -115,6 +117,70 @@ describe('buildKnockoutStage', () => {
     expect(new Set(round1Slots).size).toBe(12);
   });
 
+  it('builds a preliminary round + clean bracket for 7 teams (1 bye, 3 prelim matches)', () => {
+    const teams = makeSeededTeams(7);
+    const stage = buildKnockoutStage(teams, false, false);
+    const { bracket } = stage;
+
+    expect(bracket.drawSize).toBe(8);
+    expect(bracket.hasPreliminaryRound).toBe(true);
+    expect(bracket.byeTeamIds).toHaveLength(1);
+    expect(bracket.byeTeamIds).toEqual([teams[0].hexId]);
+
+    const prelimRound = bracket.rounds[0];
+    expect(prelimRound.name).toBe('Ronda Preliminar');
+    expect(prelimRound.matches).toHaveLength(3);
+
+    // Cuartos (4 teams / 2 matches), Semis (2), Final (1).
+    expect(bracket.rounds.map((r) => r.name)).toEqual([
+      'Ronda Preliminar',
+      'Semifinales',
+      'Final',
+    ]);
+    expect(bracket.rounds[1].matches).toHaveLength(2);
+    expect(bracket.rounds[2].matches).toHaveLength(1);
+
+    // The 1 bye + 3 preliminary winners fill exactly the 4 slots (2 matches) of round 1.
+    const round1Slots = bracket.rounds[1].matches.flatMap((m) =>
+      [m.homeTeamId, m.awayTeamId].filter((id): id is string => Boolean(id)),
+    );
+    expect(round1Slots).toHaveLength(1);
+    expect(round1Slots).toEqual(bracket.byeTeamIds);
+  });
+
+  it('builds a preliminary round + clean bracket for 15 teams (1 bye, 7 prelim matches)', () => {
+    const teams = makeSeededTeams(15);
+    const stage = buildKnockoutStage(teams, false, false);
+    const { bracket } = stage;
+
+    expect(bracket.drawSize).toBe(16);
+    expect(bracket.hasPreliminaryRound).toBe(true);
+    expect(bracket.byeTeamIds).toHaveLength(1);
+    expect(bracket.byeTeamIds).toEqual([teams[0].hexId]);
+
+    const prelimRound = bracket.rounds[0];
+    expect(prelimRound.name).toBe('Ronda Preliminar');
+    expect(prelimRound.matches).toHaveLength(7);
+
+    // drawSize=16 -> firstMainSize = drawSize/2 = 8, so round 1 (right after
+    // the preliminary round) is "Cuartos de Final" (round of 8), not
+    // "Octavos" — the preliminary round itself absorbs the extra round.
+    expect(bracket.rounds.map((r) => r.name)).toEqual([
+      'Ronda Preliminar',
+      'Cuartos de Final',
+      'Semifinales',
+      'Final',
+    ]);
+    expect(bracket.rounds[1].matches).toHaveLength(4);
+
+    // Exactly 1 bye + 7 preliminary winners fill the 8 slots (4 matches) of round 1.
+    const round1Slots = bracket.rounds[1].matches.flatMap((m) =>
+      [m.homeTeamId, m.awayTeamId].filter((id): id is string => Boolean(id)),
+    );
+    expect(round1Slots).toHaveLength(1);
+    expect(round1Slots).toEqual(bracket.byeTeamIds);
+  });
+
   it('marks the third-place match as single-leg even when the bracket itself is two-legged', () => {
     const teams = makeSeededTeams(8);
     const stage = buildKnockoutStage(teams, true, true);
@@ -129,6 +195,40 @@ describe('buildKnockoutStage', () => {
       for (const match of round.matches) {
         expect(match.isTwoLegged).toBe(true);
       }
+    }
+  });
+
+  it('produces a playable bracket (no missing slots, exactly one champion) for EVERY teamCount in the supported SINGLE_ELIMINATION range [4, 64]', () => {
+    for (let teamCount = 4; teamCount <= 64; teamCount++) {
+      const teams = makeSeededTeams(teamCount);
+      const { bracket } = buildKnockoutStage(teams, false, false);
+
+      // Play every round in order, always advancing the home side — this
+      // exercises `advanceWinnerInBracket`'s preliminary-round offset
+      // (see bracket-advance.util.ts) for every possible byeCount/
+      // mainMatchCount split, not just the ones explicitly worked out above.
+      bracket.rounds.forEach((round, roundIndex) => {
+        round.matches.forEach((match, matchIndex) => {
+          if (!match.homeTeamId || !match.awayTeamId) {
+            throw new Error(
+              `teamCount=${teamCount} round=${roundIndex} match=${matchIndex} is missing a slot: ${JSON.stringify(match)}`,
+            );
+          }
+          const winner = match.homeTeamId;
+          const loser = match.awayTeamId;
+          match.status = MatchStatus.PLAYED;
+          match.winnerTeamId = winner;
+          advanceWinnerInBracket(
+            bracket,
+            roundIndex,
+            matchIndex,
+            winner,
+            loser,
+          );
+        });
+      });
+
+      expect(bracket.championTeamId).toBeDefined();
     }
   });
 });

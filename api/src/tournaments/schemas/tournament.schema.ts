@@ -121,6 +121,25 @@ export class Tournament {
   @Prop({ type: [TeamSchema], default: [] })
   teams: Team[];
 
+  /**
+   * Whether CPU/AI teams were auto-added at creation time to round
+   * `teamCount` up to a "clean" size for the draw — only meaningful (and
+   * only ever `true`) for the two formats that allow it, SINGLE_ELIMINATION
+   * (padded up to the next power of two, e.g. 7 -> 8) and
+   * GROUP_STAGE_PLUS_ELIMINATION (padded up to the next multiple of
+   * `groupCap`, capped at the format's max team count, e.g. teamCount=10,
+   * groupCap=4 -> 12) — see `dto/format-rules.ts#computeEliminationAiFillTeamCount`
+   * / `#computeGroupStageAiFillTeamCount`. The extra teams are just regular
+   * `Team` entries with an empty `playerNames` (the existing "unassigned
+   * team = CPU/AI-controlled" convention, unchanged); this flag is kept
+   * purely for transparency/auditing of how `teams.length` came to differ
+   * from the organizer-submitted `teams`/`teamCount`. Always `false` for
+   * tournaments created before this field existed (see the team-count
+   * migration).
+   */
+  @Prop({ default: false })
+  aiFill: boolean;
+
   // --- Format-specific stages (exactly one populated per `format`) -------
 
   /** Populated when format = SINGLE_ELIMINATION, or as stage 2 of

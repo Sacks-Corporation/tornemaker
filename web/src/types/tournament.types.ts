@@ -30,7 +30,12 @@ export interface CreateTournamentPayload {
   matchMode: MatchModeCode
   twoLegged: boolean
   thirdPlaceMatch: boolean
-  groupSize?: number
+  // Tope de equipos por grupo (reemplaza al viejo `groupSize`, uniforme).
+  // Solo aplica a GROUP_STAGE_PLUS_ELIMINATION.
+  groupCap?: number
+  // Relleno con IA: solo aplica a los formatos con `allowsAi` (ver
+  // TournamentFormatRules). Default `false` en el back si se omite.
+  aiFill?: boolean
   consoles: ConsoleCode[]
   teams: string[]
   players: string[]
@@ -46,7 +51,8 @@ export interface Tournament {
   matchMode: MatchModeCode
   twoLegged: boolean
   thirdPlaceMatch: boolean
-  groupSize?: number
+  groupCap?: number
+  aiFill?: boolean
   consoles: ConsoleCode[]
   teams: string[]
   players: string[]
@@ -144,10 +150,14 @@ export interface Group {
 }
 
 export interface GroupStage {
-  groupSize: number
+  // Tope de equipos por grupo (reemplaza al viejo `groupSize`, uniforme).
+  groupCap: number
   doubleRound: boolean
   groups: Group[]
+  /** @deprecated Vestigial del back, siempre 0 ahora (ya no existen "mejores
+   *  terceros": clasifican los 2 primeros de cada grupo). */
   bestThirdPlaceSlots: number
+  /** @deprecated Vestigial del back, siempre [] ahora. */
   qualifiedThirdPlaceTeamIds: string[]
 }
 
@@ -210,6 +220,9 @@ export interface TournamentDetail {
   matchMode: MatchModeCode
   consoleUnits: number
   allowedConsoles: ConsoleCode[]
+  // Si se agregaron equipos IA para redondear la cantidad de equipos al
+  // crear el torneo (ver CreateTournamentPayload.aiFill).
+  aiFill: boolean
   teams: TournamentTeam[]
   leagueStage?: LeagueStage
   groupStage?: GroupStage
@@ -277,7 +290,11 @@ export interface NewTournamentWizardData {
   format: TournamentFormat | null
   name: string
   teamCount: number | null
-  groupSize: number | null
+  // Tope de equipos por grupo (reemplaza al viejo `groupSize`). Solo se usa
+  // (y se pide) para GROUP_STAGE_PLUS_ELIMINATION.
+  groupCap: number | null
+  // Relleno con IA: solo visible/editable para los formatos con `allowsAi`.
+  aiFill: boolean
   twoLegged: boolean | null
   thirdPlaceMatch: boolean | null
   matchMode: MatchModeCode | null

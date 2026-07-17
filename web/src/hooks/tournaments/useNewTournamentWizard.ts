@@ -41,7 +41,8 @@ function buildDefaultData(defaultName: string): NewTournamentWizardData {
     format: null,
     name: defaultName,
     teamCount: null,
-    groupSize: null,
+    groupCap: null,
+    aiFill: false,
     twoLegged: null,
     thirdPlaceMatch: null,
     matchMode: null,
@@ -54,11 +55,23 @@ function buildDefaultData(defaultName: string): NewTournamentWizardData {
   }
 }
 
+// Los datos persistidos de una versión anterior del wizard usaban `groupSize`
+// (reemplazado por `groupCap`) y no tenían `aiFill`. En vez de migrar campo a
+// campo, se descartan por completo: el input libre de `teamCount`/`groupCap`
+// reemplaza la lógica de catálogo anterior y no hay forma segura de mapear un
+// estado viejo al nuevo (fallback seguro: el usuario arranca el wizard de nuevo).
+function isCurrentWizardShape(value: unknown): value is NewTournamentWizardData {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Record<string, unknown>
+  return typeof candidate.aiFill === 'boolean' && 'groupCap' in candidate
+}
+
 function readStoredData(): NewTournamentWizardData | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as NewTournamentWizardData
+    const parsed: unknown = JSON.parse(raw)
+    return isCurrentWizardShape(parsed) ? parsed : null
   } catch {
     return null
   }
@@ -71,8 +84,13 @@ function readStoredData(): NewTournamentWizardData | null {
 //
 // Los catálogos dinámicos (consolas, modalidades, reglas de formato) se leen
 // acá vía TanStack Query y alimentan los valores derivados (`perTeam`,
-// `allowsAi`, `teamCountOptions`, `groupSizeOptions`) que consumen los
-// distintos steps, igual que antes cuando salían de tablas hardcodeadas.
+// `allowsAi`, `formatRules`) que consumen los distintos steps, igual que
+// antes cuando salían de tablas hardcodeadas. La cantidad de equipos y el
+// tope de grupo (SINGLE_ELIMINATION / GROUP_STAGE_PLUS_ELIMINATION) son
+// inputs numéricos libres validados contra `formatRules.teamRange` /
+// `formatRules.groupCap` en ParameterStep.container; LEAGUE y
+// SWISS_PLUS_ELIMINATION siguen ofreciendo un Select armado a partir de
+// `formatRules.teamRange` / `formatRules.teamCounts` respectivamente.
 export function useNewTournamentWizard() {
   const { t } = useTranslation()
   const { user } = useAuth()
@@ -125,12 +143,13 @@ export function useNewTournamentWizard() {
     setData((prev) => ({
       ...prev,
       format,
-      // Las cantidades de equipos/tamaños de grupo válidos dependen del nuevo
-      // formato y se resuelven de forma asíncrona (useFormatRulesQuery), así
-      // que se resetean acá: el usuario los vuelve a elegir una vez que
-      // cargó el catálogo del formato elegido.
+      // La cantidad de equipos / tope de grupo / relleno con IA válidos
+      // dependen del nuevo formato (rango dinámico, ver useFormatRulesQuery),
+      // así que se resetean acá: el usuario los vuelve a completar una vez
+      // elegido el formato.
       teamCount: null,
-      groupSize: null,
+      groupCap: null,
+      aiFill: false,
       thirdPlaceMatch: format === 'LEAGUE' ? false : prev.thirdPlaceMatch,
     }))
   }, [])
@@ -139,36 +158,32 @@ export function useNewTournamentWizard() {
     setData((prev) => ({ ...prev, name }))
   }, [])
 
+  // `teamCount` ahora es un valor libre (Select cerrado solo para LEAGUE/
+  // SWISS, ver ParameterStep.container): acá solo se persiste y se
+  // redimensionan los arrays de equipos/jugadores en consecuencia. `null`
+  // representa el input vacío mientras el usuario está tipeando.
   const setTeamCount = useCallback(
-    (teamCount: number) => {
+    (teamCount: number | null) => {
       setData((prev) => {
         const perTeam = getPerTeamFor(prev.matchMode)
-        const isGroupStage = prev.format === 'GROUP_STAGE_PLUS_ELIMINATION'
-        const groupSizeOptions = isGroupStage
-          ? (formatRules?.groupSizesByTeamCount?.[teamCount] ?? [])
-          : []
-        const groupSize = isGroupStage
-          ? (groupSizeOptions.length === 1
-              ? groupSizeOptions[0]
-              : prev.groupSize !== null && groupSizeOptions.includes(prev.groupSize)
-                ? prev.groupSize
-                : null)
-          : null
-
+        const resolvedCount = teamCount ?? 0
         return {
           ...prev,
           teamCount,
-          groupSize,
-          teams: resizeStringArray(prev.teams, teamCount),
-          players: resizeStringArray(prev.players, teamCount * perTeam),
+          teams: resizeStringArray(prev.teams, resolvedCount),
+          players: resizeStringArray(prev.players, resolvedCount * perTeam),
         }
       })
     },
-    [getPerTeamFor, formatRules],
+    [getPerTeamFor],
   )
 
-  const setGroupSize = useCallback((groupSize: number) => {
-    setData((prev) => ({ ...prev, groupSize }))
+  const setGroupCap = useCallback((groupCap: number | null) => {
+    setData((prev) => ({ ...prev, groupCap }))
+  }, [])
+
+  const setAiFill = useCallback((aiFill: boolean) => {
+    setData((prev) => ({ ...prev, aiFill }))
   }, [])
 
   const setTwoLegged = useCallback((twoLegged: boolean) => {
@@ -311,17 +326,16 @@ export function useNewTournamentWizard() {
 
   const perTeam = getPerTeamFor(data.matchMode)
   const allowsAi = formatRules?.allowsAi ?? false
-  const teamCountOptions = formatRules?.teamCounts ?? []
-  const groupSizeOptions =
-    data.teamCount !== null ? (formatRules?.groupSizesByTeamCount?.[data.teamCount] ?? []) : []
   const unassignedPlayers = getUnassignedPlayers(data.players, data.assignments)
 
   return {
     data,
     perTeam,
     allowsAi,
-    teamCountOptions,
-    groupSizeOptions,
+    // Reglas crudas del formato elegido (rango de equipos / set cerrado /
+    // tope de grupo), consumidas directamente por ParameterStep.container
+    // para armar el input/Select correcto y las validaciones client-side.
+    formatRules,
     unassignedPlayers,
     consoles,
     matchModes,
@@ -332,7 +346,8 @@ export function useNewTournamentWizard() {
     setFormat,
     setName,
     setTeamCount,
-    setGroupSize,
+    setGroupCap,
+    setAiFill,
     setTwoLegged,
     setThirdPlaceMatch,
     setMatchMode,

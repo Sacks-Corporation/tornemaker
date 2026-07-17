@@ -68,8 +68,12 @@ describe('advanceWinnerInBracket — standard rounds', () => {
   });
 });
 
-describe('advanceWinnerInBracket — preliminary round feed (identity mapping into away slot)', () => {
-  it('feeds a preliminary winner into the away slot of the same-index main-round match', () => {
+describe('advanceWinnerInBracket — preliminary round feed (byeCount-offset positional rule)', () => {
+  it('feeds preliminary winners into the main-round match(es) that come AFTER the bye-filled ones, per the flat byes-then-winners layout', () => {
+    // 6-team-style bracket: 2 byes, 2 preliminary matches -> the flat
+    // first-main-round layout is [bye1, bye2, W0, W1], paired into
+    // match0=[bye1,bye2] (already fully filled) and match1=[W0,W1] (both
+    // TBD from the two preliminary matches) — see knockout-fixtures.ts.
     const bracket: Bracket = {
       drawSize: 8,
       byeTeamIds: ['bye1', 'bye2'],
@@ -89,8 +93,8 @@ describe('advanceWinnerInBracket — preliminary round feed (identity mapping in
           roundNumber: 1,
           name: 'Semifinales',
           matches: [
-            placeholder('sf1', 'bye1', undefined),
-            placeholder('sf2', 'bye2', undefined),
+            placeholder('sf1', 'bye1', 'bye2'),
+            placeholder('sf2', undefined, undefined),
           ],
         },
         { roundNumber: 2, name: 'Final', matches: [placeholder('final')] },
@@ -102,11 +106,56 @@ describe('advanceWinnerInBracket — preliminary round feed (identity mapping in
 
     expect(bracket.rounds[1].matches[0]).toMatchObject({
       homeTeamId: 'bye1',
+      awayTeamId: 'bye2',
+    });
+    expect(bracket.rounds[1].matches[1]).toMatchObject({
+      homeTeamId: 'p1a',
+      awayTeamId: 'p2b',
+    });
+  });
+
+  it('handles more preliminary matches than main-round matches (1 bye, 3 preliminary matches -> [bye, W0, W1, W2], main round has only 2 matches)', () => {
+    // 7-team-style bracket: 1 bye, 3 preliminary matches -> flat layout is
+    // [bye1, W0, W1, W2], paired into match0=[bye1, W0] and match1=[W1, W2].
+    const bracket: Bracket = {
+      drawSize: 8,
+      byeTeamIds: ['bye1'],
+      hasPreliminaryRound: true,
+      isTwoLegged: false,
+      hasThirdPlaceMatch: false,
+      rounds: [
+        {
+          roundNumber: 0,
+          name: 'Ronda Preliminar',
+          matches: [
+            placeholder('p1', 'p1a', 'p1b'),
+            placeholder('p2', 'p2a', 'p2b'),
+            placeholder('p3', 'p3a', 'p3b'),
+          ],
+        },
+        {
+          roundNumber: 1,
+          name: 'Semifinales',
+          matches: [
+            placeholder('sf1', 'bye1', undefined),
+            placeholder('sf2', undefined, undefined),
+          ],
+        },
+        { roundNumber: 2, name: 'Final', matches: [placeholder('final')] },
+      ],
+    };
+
+    advanceWinnerInBracket(bracket, 0, 0, 'p1a');
+    advanceWinnerInBracket(bracket, 0, 1, 'p2a');
+    advanceWinnerInBracket(bracket, 0, 2, 'p3b');
+
+    expect(bracket.rounds[1].matches[0]).toMatchObject({
+      homeTeamId: 'bye1',
       awayTeamId: 'p1a',
     });
     expect(bracket.rounds[1].matches[1]).toMatchObject({
-      homeTeamId: 'bye2',
-      awayTeamId: 'p2b',
+      homeTeamId: 'p2a',
+      awayTeamId: 'p3b',
     });
   });
 });

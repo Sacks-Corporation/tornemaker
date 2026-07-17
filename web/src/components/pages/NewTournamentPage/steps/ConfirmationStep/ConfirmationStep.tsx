@@ -12,8 +12,10 @@ export interface ConfirmationStepProps {
   formatLabel: string
   name: string
   teamCount: number
-  showGroupSize: boolean
-  groupSize: number | null
+  showGroupCap: boolean
+  groupCap: number | null
+  showAiFill: boolean
+  aiFillLabel: string
   twoLeggedLabel: string
   showThirdPlaceMatch: boolean
   thirdPlaceMatchLabel: string
@@ -33,8 +35,10 @@ function ConfirmationStep({
   formatLabel,
   name,
   teamCount,
-  showGroupSize,
-  groupSize,
+  showGroupCap,
+  groupCap,
+  showAiFill,
+  aiFillLabel,
   twoLeggedLabel,
   showThirdPlaceMatch,
   thirdPlaceMatchLabel,
@@ -81,10 +85,16 @@ function ConfirmationStep({
           <dt className="text-text-muted">{t('tournament.steps.confirmation.teamCountLabel')}</dt>
           <dd className="font-medium text-text">{teamCount}</dd>
         </div>
-        {showGroupSize && (
+        {showGroupCap && (
           <div>
-            <dt className="text-text-muted">{t('tournament.steps.confirmation.groupSizeLabel')}</dt>
-            <dd className="font-medium text-text">{groupSize}</dd>
+            <dt className="text-text-muted">{t('tournament.steps.confirmation.groupCapLabel')}</dt>
+            <dd className="font-medium text-text">{groupCap}</dd>
+          </div>
+        )}
+        {showAiFill && (
+          <div>
+            <dt className="text-text-muted">{t('tournament.steps.confirmation.aiFillLabel')}</dt>
+            <dd className="font-medium text-text">{aiFillLabel}</dd>
           </div>
         )}
         <div>

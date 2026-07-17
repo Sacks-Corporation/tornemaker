@@ -7,7 +7,6 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -37,12 +36,24 @@ function trimStringArrayIfArray({ value }: TransformFnParams): unknown {
  * seed the draw: team names, the player pool, and how players are assigned
  * to teams.
  *
- * `groupSize` is only meaningful for GROUP_STAGE_PLUS_ELIMINATION; whether
- * it's required/forbidden for a given `format`, and every other cross-field
- * rule (team count per format, players-per-team, assignment consistency), is
- * validated in the service layer against `dto/format-rules.ts` — those
- * constraints are inherently cross-field and don't fit class-validator's
- * per-property model cleanly.
+ * `teamCount` here is `teams.length` — the REAL, organizer-submitted team
+ * count. It is range/set-checked per `format` (`teamRange`/`teamCounts` from
+ * `dto/format-rules.ts`), and `groupCap`/`aiFill`'s applicability to a given
+ * `format`, plus every other cross-field rule (players-per-team, assignment
+ * consistency, group-distribution validity), is validated in the service
+ * layer against `dto/format-rules.ts` — those constraints are inherently
+ * cross-field and don't fit class-validator's per-property model cleanly.
+ *
+ * `groupCap` is only meaningful for GROUP_STAGE_PLUS_ELIMINATION: the MAX
+ * size of any group (replaces the old, uniform `groupSize`) — see
+ * `dto/format-rules.ts#computeGroupDistribution`.
+ *
+ * `aiFill` (default `false`) only applies to the two formats that allow
+ * CPU/AI teams (`allowsAi` on `GET /utils/tournament-formats`) —
+ * SINGLE_ELIMINATION and GROUP_STAGE_PLUS_ELIMINATION. When `true`, the
+ * service pads `teamCount` up with AI-controlled teams (auto-generated
+ * names, unassigned — see `Tournament.aiFill`) before drawing, so the ACTUAL
+ * number of teams in the draw can exceed `teamCount`/`teams.length`.
  *
  * `consoles` and `matchMode` are plain, non-empty strings here (NOT
  * `@IsEnum`): the Mongo-backed `consoles`/`matchmodes` catalogs (see
@@ -74,11 +85,19 @@ export class CreateTournamentDto {
   @IsBoolean()
   thirdPlaceMatch: boolean;
 
-  /** Required (and restricted to 3/4/5) only for GROUP_STAGE_PLUS_ELIMINATION. */
+  /** Required (min 3, otherwise free) only for GROUP_STAGE_PLUS_ELIMINATION
+   *  — replaces the old, uniform `groupSize`; this is a CAP on group size,
+   *  see `dto/format-rules.ts#computeGroupDistribution`. */
   @IsOptional()
   @IsInt()
-  @IsIn([3, 4, 5])
-  groupSize?: number;
+  @Min(3)
+  groupCap?: number;
+
+  /** Only allowed for formats with `allowsAi` (SINGLE_ELIMINATION,
+   *  GROUP_STAGE_PLUS_ELIMINATION). Defaults to `false` — see class doc. */
+  @IsOptional()
+  @IsBoolean()
+  aiFill?: boolean;
 
   /** Each entry must be an active `code` in the `consoles` catalog (see UtilsService). */
   @IsArray()

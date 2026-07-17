@@ -29,30 +29,24 @@ export const BracketRoundSchema = SchemaFactory.createForClass(BracketRound);
  * second stage of Format 2 (group stage -> elimination) and Format 4
  * (Swiss -> elimination).
  *
- * Design notes — non power-of-two draws (6, 10, 12, 20, 24, 28 teams):
+ * Design notes — non power-of-two draws (ANY `teamCount`, not a fixed list):
  * The bracket is always built as the next power of two that fits the
- * qualified team count (8, 16, 16, 32, 32, 32 respectively). The gap
- * between the team count and that power of two is resolved with byes
- * awarded to the best-seeded teams in a **preliminary round**:
- *   - 6  teams -> nextPow2 = 8  -> 2 teams get a bye, 4 teams (2 matches)
- *                 play a preliminary round; winners join the 2 byes in
- *                 quarterfinals... actually with 6 teams the preliminary
- *                 round produces 2 winners that combine with the 4 byes to
- *                 form a clean quarterfinal round of 4 matches (see
- *                 byeCount below — this is computed, not hardcoded).
- *   - 10 teams -> nextPow2 = 16 -> 6 byes, 4 preliminary matches (8 teams).
- *   - 12 teams -> nextPow2 = 16 -> 4 byes, 8 preliminary matches... i.e.
- *                 preliminary round is sized as
- *                 (teamCount - byeCount) where byeCount = nextPow2 - teamCount,
- *                 and preliminary match count = (teamCount - byeCount) / 2.
- *   - 20 teams -> nextPow2 = 32 -> 12 byes, 8 preliminary matches.
- *   - 24 teams -> nextPow2 = 32 -> 8 byes, 16 preliminary matches.
- *   - 28 teams -> nextPow2 = 32 -> 4 byes, 24 preliminary matches.
- * `byeTeamIds` records exactly which teams received a bye directly into
- * round 1 of the main bracket, so the fixture generator and the UI can
- * render the preliminary round distinctly. This computation is generic
- * (byeCount = nextPowerOfTwo(teamCount) - teamCount) and therefore covers
- * every case above without special-casing any particular team count.
+ * qualified team count (`nextPowerOfTwo(teamCount)`). The gap between the
+ * team count and that power of two is resolved with byes awarded to the
+ * best-seeded teams in a **preliminary round**:
+ *   - byeCount = nextPowerOfTwo(teamCount) - teamCount teams get a bye
+ *     directly into round 1 of the main bracket.
+ *   - The remaining (teamCount - byeCount) teams play a preliminary round of
+ *     (teamCount - byeCount) / 2 matches; winners join the byes to fill
+ *     round 1 of the main bracket.
+ * E.g. teamCount=15 -> nextPow2=16 -> 1 bye, 14 teams / 7 preliminary
+ * matches. teamCount=7 -> nextPow2=8 -> 1 bye, 6 teams / 3 preliminary
+ * matches. `byeTeamIds` records exactly which teams received a bye directly
+ * into round 1 of the main bracket, so the fixture generator and the UI can
+ * render the preliminary round distinctly. This computation is fully
+ * generic (byeCount = nextPowerOfTwo(teamCount) - teamCount) and covers
+ * every `teamCount` in the supported range without special-casing any
+ * particular value — see draw/knockout-fixtures.ts#buildKnockoutStage.
  */
 @Schema({ _id: false })
 export class Bracket {

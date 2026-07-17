@@ -29,7 +29,6 @@ import {
 import { locateMatch, MatchLocation } from './match-locator.util';
 import { recordMatchResult } from './match-result.util';
 import {
-  compareStandings,
   computeBaseStandings,
   sortAndRank,
   StandingsPointsRules,
@@ -162,7 +161,7 @@ export class MatchProgressionService {
     const seeds = this.seedLookup(tournament);
 
     const groupsComplete = stage.groups.map((group) =>
-      this.recomputeGroup(group, stage.bestThirdPlaceSlots, seeds),
+      this.recomputeGroup(group, seeds),
     );
 
     if (!groupsComplete.every(Boolean)) {
@@ -174,12 +173,9 @@ export class MatchProgressionService {
 
   /** Recomputes one group's standings and, if the group's own matches are
    *  all done, reconciles any tie that matters for its qualification
-   *  boundary. Returns whether the group is fully resolved. */
-  private recomputeGroup(
-    group: Group,
-    bestThirdPlaceSlots: number,
-    seeds: SeedLookup[],
-  ): boolean {
+   *  boundary (rank 2 / rank 3 — only the top 2 ever qualify, see
+   *  group-stage.schema.ts). Returns whether the group is fully resolved. */
+  private recomputeGroup(group: Group, seeds: SeedLookup[]): boolean {
     const { standings, tieGroups } = sortAndRank(
       computeBaseStandings(group.teamIds, group.matches, GROUP_STANDINGS_RULES),
     );
@@ -190,11 +186,9 @@ export class MatchProgressionService {
       return false;
     }
 
-    const matteringGroups = tieGroups.filter((tg) =>
-      tieMattersForGroup(tg, bestThirdPlaceSlots),
-    );
+    const matteringGroups = tieGroups.filter(tieMattersForGroup);
     const nonMatteringGroups = tieGroups.filter(
-      (tg) => !tieMattersForGroup(tg, bestThirdPlaceSlots),
+      (tg) => !tieMattersForGroup(tg),
     );
 
     // Ties that don't affect qualification are still given a definitive
@@ -237,29 +231,11 @@ export class MatchProgressionService {
       (g) => g.standings.find((s) => s.rank === 2)?.teamId as string,
     );
 
-    let rankedThirds: string[] = [];
-    if (stage.bestThirdPlaceSlots > 0) {
-      const seeds = this.seedLookup(tournament);
-      const thirds = stage.groups
-        .map((g) => g.standings.find((s) => s.rank === 3))
-        .filter((s): s is Standing => Boolean(s));
-      const sortedThirds = [...thirds].sort((a, b) => {
-        const cmp = compareStandings(a, b);
-        return cmp !== 0
-          ? cmp
-          : seedOf(a.teamId, seeds) - seedOf(b.teamId, seeds);
-      });
-      rankedThirds = sortedThirds
-        .slice(0, stage.bestThirdPlaceSlots)
-        .map((s) => s.teamId);
-      stage.qualifiedThirdPlaceTeamIds = rankedThirds;
-    }
-
-    const seedOrder = buildGroupQualifiersSeedOrder(
-      firsts,
-      seconds,
-      rankedThirds,
-    );
+    // Only the top 2 of every group qualify — no "best third-placed teams"
+    // tier (see group-stage.schema.ts). When `2 * groupCount` isn't a power
+    // of two, `buildKnockoutStage` resolves the gap with byes, prioritized
+    // to group winners by `buildGroupQualifiersSeedOrder` below.
+    const seedOrder = buildGroupQualifiersSeedOrder(firsts, seconds);
     const seededTeams = toSeededTeams(seedOrder, tournament.teams);
 
     const wantsThirdPlace = Boolean(tournament.thirdPlaceMatch);
@@ -517,18 +493,11 @@ function applyResolvedOrder(
 }
 
 /**
- * A group tie "matters" (per the business rule) when it spans:
- *   - the direct-qualification boundary (rank 2 / rank 3), or
- *   - the "who is exactly 3rd" boundary, but only when best-third slots are
- *     in play (`bestThirdPlaceSlots > 0`) — that team's identity feeds the
- *     cross-group best-third ranking.
+ * A group tie "matters" (per the business rule) when it spans the
+ * direct-qualification boundary (rank 2 / rank 3) — the only boundary that
+ * exists now that only the top 2 of every group qualify (no "best
+ * third-placed teams" tier, see group-stage.schema.ts).
  */
-function tieMattersForGroup(
-  tieGroup: TieGroup,
-  bestThirdPlaceSlots: number,
-): boolean {
-  const spansDirectBoundary = tieGroup.fromRank <= 2 && tieGroup.toRank >= 2;
-  const spansThirdBoundary =
-    bestThirdPlaceSlots > 0 && tieGroup.fromRank <= 3 && tieGroup.toRank >= 3;
-  return spansDirectBoundary || spansThirdBoundary;
+function tieMattersForGroup(tieGroup: TieGroup): boolean {
+  return tieGroup.fromRank <= 2 && tieGroup.toRank >= 2;
 }

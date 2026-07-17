@@ -9,6 +9,7 @@ import {
   buildTournamentPayload,
   getCatalogLabel,
   getFilledNames,
+  usesFreeTeamCountInput,
 } from '../../../../../utils/tournament.utils'
 
 export interface ConfirmationStepContainerProps {
@@ -31,8 +32,9 @@ function ConfirmationStepContainer({
   const teamCount = data.teamCount ?? 0
 
   const formatLabel = data.format ? t(`tournament.formats.${data.format}.title`) : ''
-  const showGroupSize = data.format === 'GROUP_STAGE_PLUS_ELIMINATION'
+  const showGroupCap = data.format === 'GROUP_STAGE_PLUS_ELIMINATION'
   const showThirdPlaceMatch = data.format !== 'LEAGUE'
+  const showAiFill = usesFreeTeamCountInput(data.format) && wizard.allowsAi
   const matchModeLabel = getCatalogLabel(wizard.matchModes, data.matchMode)
   const consoleLabels = data.consoles.map((consoleType) => getCatalogLabel(wizard.consoles, consoleType))
 
@@ -65,8 +67,10 @@ function ConfirmationStepContainer({
       formatLabel={formatLabel}
       name={data.name}
       teamCount={teamCount}
-      showGroupSize={showGroupSize}
-      groupSize={data.groupSize}
+      showGroupCap={showGroupCap}
+      groupCap={data.groupCap}
+      showAiFill={showAiFill}
+      aiFillLabel={data.aiFill ? t('tournament.yesNo.yes') : t('tournament.yesNo.no')}
       twoLeggedLabel={data.twoLegged ? t('tournament.yesNo.yes') : t('tournament.yesNo.no')}
       showThirdPlaceMatch={showThirdPlaceMatch}
       thirdPlaceMatchLabel={data.thirdPlaceMatch ? t('tournament.yesNo.yes') : t('tournament.yesNo.no')}

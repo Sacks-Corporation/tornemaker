@@ -42,12 +42,33 @@ const tournament = {
       teamCount: {
         label: 'Cantidad de equipos',
         placeholder: 'Seleccioná la cantidad de equipos',
+        numberPlaceholder: 'Ingresá la cantidad de equipos',
         loadingLabel: 'Cargando cantidades disponibles…',
+        errors: {
+          range: 'Ingresá un número entero entre {{min}} y {{max}}.',
+        },
       },
-      groupSize: {
-        label: 'Tamaño de grupo',
-        placeholder: 'Seleccioná el tamaño de grupo',
-        loadingLabel: 'Cargando tamaños disponibles…',
+      groupCap: {
+        label: 'Tope de equipos por grupo',
+        placeholder: 'Ingresá el tope de equipos por grupo',
+        errors: {
+          min: 'El tope debe ser un número entero de al menos {{min}} equipos.',
+          invalidCombination:
+            'Con esa cantidad de equipos y ese tope no se pueden formar al menos 2 grupos de 3 equipos o más. Probá con otro tope.',
+        },
+      },
+      aiFill: {
+        label: 'Relleno con IA',
+        description:
+          'Completa automáticamente los equipos que falten con IA hasta llegar a una cantidad válida para el formato.',
+      },
+      preview: {
+        title: 'Vista previa de la configuración',
+        preliminaryRound: '{{count}} equipos juegan la ronda preliminar',
+        byeSingular: '1 equipo pasa directo a la siguiente ronda',
+        byePlural: '{{count}} equipos pasan directo a la siguiente ronda',
+        groups: '{{count}} grupos: {{sizes}}',
+        aiFill: 'Se agregarán {{count}} equipos IA (total {{total}})',
       },
       twoLegged: {
         label: 'Ida y vuelta',
@@ -121,7 +142,8 @@ const tournament = {
       formatLabel: 'Formato',
       nameLabel: 'Nombre',
       teamCountLabel: 'Cantidad de equipos',
-      groupSizeLabel: 'Tamaño de grupo',
+      groupCapLabel: 'Tope de equipos por grupo',
+      aiFillLabel: 'Relleno con IA',
       twoLeggedLabel: 'Ida y vuelta',
       thirdPlaceMatchLabel: 'Partido por el tercer puesto',
       matchModeLabel: 'Modalidad',

@@ -5,38 +5,32 @@ import { Standing, StandingSchema } from './common/standing.schema';
 /**
  * Format 2 — Group stage + single elimination.
  *
- * - Teams: 6, 8, 12, 16, 20, 24, 28, 32. Group size: 3, 4 or 5 (organizer
- *   choice, validated together with team count at the service layer —
- *   `teamCount` must be evenly divisible by `groupSize`).
+ * - Teams: any integer `teamCount` in [6, 64] (see
+ *   `dto/format-rules.ts#TEAM_RANGE_BY_FORMAT`). `groupCap` (organizer
+ *   choice, min 3) is the MAX size of any group — teams are split into a
+ *   balanced distribution via `dto/format-rules.ts#computeGroupDistribution`
+ *   (`groupCount = ceil(teamCount / groupCap)`, sizes differ by at most 1,
+ *   never exceed `groupCap`). E.g. teamCount=10, groupCap=4 -> groups of
+ *   [4, 3, 3] (never [4, 4, 2]). A combination is only valid when
+ *   `groupCount >= 2` and `teamCount >= 3 * groupCount` — rejected at the
+ *   service layer otherwise (e.g. teamCount=10, groupCap=3 -> groupCount=4,
+ *   but 10 < 12, invalid).
  * - Matches within a group can be single leg or two-legged (`doubleRound`).
- * - Top 2 of every group always qualify. Depending on how many groups/what
- *   size, the bracket may also need the "best third-placed teams" to reach
- *   a power-of-two qualifier count so the knockout bracket closes cleanly
- *   (this stage never generates byes into its own knockout stage — any
- *   gap is closed by best-thirds instead).
+ * - ONLY the top 2 of every group qualify — there is no "best third-placed
+ *   teams" mechanism (removed together with the old closed team-count
+ *   table). Direct qualifiers = `2 * groupCount`; when that isn't a power of
+ *   two, the follow-up knockout bracket is resolved with byes/a preliminary
+ *   round instead, reusing the exact same generic mechanism as
+ *   SINGLE_ELIMINATION (see draw/knockout-fixtures.ts#buildKnockoutStage).
+ *   When seeding that bracket, group WINNERS are prioritized to receive the
+ *   byes (see progression/knockout-seeding.util.ts#buildGroupQualifiersSeedOrder).
  *
- * Design note — worked cases (teamCount / groupSize -> groups -> qualifiers):
- *   6  / 3 -> 2 groups -> 4 direct (2x2)            -> bracket of 4, no thirds.
- *   8  / 4 -> 2 groups -> 4 direct (2x2)            -> bracket of 4, no thirds.
- *   12 / 4 -> 3 groups -> 6 direct (2x3) + 2 best 3rd -> bracket of 8.
- *   12 / 3 -> 4 groups -> 8 direct (2x4)            -> bracket of 8, no thirds.
- *   16 / 4 -> 4 groups -> 8 direct (2x4)            -> bracket of 8, no thirds.
- *   20 / 5 -> 4 groups -> 8 direct (2x4)            -> bracket of 8, no thirds.
- *   20 / 4 -> 5 groups -> 10 direct (2x5)           -> NOT supported: cannot
- *             reach 8 (10 > 8) nor 16 (would need 6 best-thirds out of only
- *             5 possible) with a clean bracket; the service layer should
- *             reject `groupSize=4` for `teamCount=20` and require
- *             `groupSize=5` instead.
- *   24 / 3 -> 8 groups -> 16 direct (2x8)           -> bracket of 16, no thirds.
- *   24 / 4 -> 6 groups -> 12 direct (2x6) + 4 best 3rd -> bracket of 16.
- *   28 / 4 -> 7 groups -> 14 direct (2x7) + 2 best 3rd -> bracket of 16.
- *   32 / 4 -> 8 groups -> 16 direct (2x8)           -> bracket of 16, no thirds.
- * `bestThirdPlaceSlots` therefore is always either 0 or a value that makes
- * (2 * groupCount + bestThirdPlaceSlots) a power of two; it is computed and
- * stored explicitly (rather than re-derived ad hoc) so the bracket-building
- * step and the UI have one unambiguous source of truth. Ranking among
- * third-placed teams uses the same tie-break order as group standings
- * (goal difference -> goals for -> head-to-head where applicable).
+ * `aiFill` (see `Tournament.aiFill`) can pad `teamCount` up to the next
+ * multiple of `groupCap` (capped at the format's max) before the draw runs,
+ * so a request for e.g. 10 teams with `groupCap=4` and `aiFill=true` is
+ * actually drawn as 12 teams (3 clean groups of 4) — the extra teams are
+ * CPU/AI-controlled (no assigned players), same convention as an unassigned
+ * team in any other format.
  *
  * Group standings reuse the generic Standing subdocument and its tie-break
  * order (goal difference -> goals for -> head-to-head between tied teams).
@@ -72,8 +66,12 @@ export const GroupSchema = SchemaFactory.createForClass(Group);
 
 @Schema({ _id: false })
 export class GroupStage {
-  @Prop({ required: true, min: 3, max: 5 })
-  groupSize: number;
+  /** Max teams allowed per group (organizer choice, min 3) — the actual
+   *  per-group sizes are a balanced distribution capped at this value, see
+   *  the class doc above. Renamed from the old fixed `groupSize` (which
+   *  used to be every group's EXACT size, now only its ceiling). */
+  @Prop({ required: true, min: 3 })
+  groupCap: number;
 
   @Prop({ default: false })
   doubleRound: boolean;
@@ -81,11 +79,18 @@ export class GroupStage {
   @Prop({ type: [GroupSchema], default: [] })
   groups: Group[];
 
-  /** How many extra "best third-placed" teams advance (0 if not needed). */
+  /**
+   * @deprecated Vestigial. The "best third-placed teams" mechanism was
+   * removed (see class doc above): non-power-of-two qualifier counts are now
+   * resolved with knockout byes, not extra qualifiers. Always `0` on any
+   * stage built by the current `buildGroupStage`/migration. Kept ONLY so
+   * historical tournaments created before this change keep serializing with
+   * the same response shape on `GET /tournaments/:id`.
+   */
   @Prop({ default: 0 })
   bestThirdPlaceSlots: number;
 
-  /** Local teamIds of the qualified best-third teams, ranked, once decided. */
+  /** @deprecated Vestigial, see `bestThirdPlaceSlots`. Always `[]` now. */
   @Prop({ type: [String], default: [] })
   qualifiedThirdPlaceTeamIds: string[];
 }

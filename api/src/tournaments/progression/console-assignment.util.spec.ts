@@ -73,7 +73,7 @@ describe('collectAllMatches', () => {
         tiebreakMatches: [scheduledMatch('l-tb')],
       },
       groupStage: {
-        groupSize: 4,
+        groupCap: 4,
         doubleRound: false,
         groups: [
           {

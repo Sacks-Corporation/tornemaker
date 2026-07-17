@@ -25,38 +25,36 @@ export function toSeededTeams(
 
 /**
  * Builds the seeding order fed into `buildKnockoutStage` for a group stage's
- * qualifiers, so the first knockout round avoids pairing two teams from the
- * same group whenever there is more than one group.
+ * qualifiers (top 2 of every group — there is no "best third-placed teams"
+ * tier anymore).
  *
- * Criterion (documented, not "optimal" seeding — just avoids the obvious
- * same-group collision): `buildKnockoutStage` pairs ADJACENT entries of the
- * array it's given (team[0] vs team[1], team[2] vs team[3], ...). So:
- *   1. `firsts` = each group's rank-1 team, in group order.
- *   2. `seconds` = each group's rank-2 team, in group order, ROTATED by one
- *      position. Rotating means `firsts[i]` is paired against a
- *      rank-2 team from a DIFFERENT group (its own rank-2 rotates away),
- *      which is only impossible when there is exactly one group.
- *   3. Interleave: [firsts[0], seconds[0], firsts[1], seconds[1], ...].
- *   4. Append the ranked best-third-placed teams (if any) at the end, as
- *      adjacent pairs in their ranked order.
+ * Two things `buildKnockoutStage` cares about, both driven by array
+ * position:
+ *   1. Byes go to whichever teams sit at the FRONT of the array
+ *      (`teams.slice(0, byeCount)`) when `2 * groupCount` isn't a power of
+ *      two. Per the product rule, group WINNERS must be prioritized to
+ *      receive those byes, so every entry of `firsts` is placed before every
+ *      entry of `seconds`.
+ *   2. Whichever teams DON'T get a bye are paired ADJACENTLY for the
+ *      preliminary round (or, when there's no preliminary round at all,
+ *      adjacent pairs directly form round 1) — see knockout-fixtures.ts. To
+ *      reduce (not guarantee — see the note below) a group's own runner-up
+ *      landing adjacent to a leftover, non-byed winner from a DIFFERENT
+ *      alignment of the array, `seconds` is rotated by one position before
+ *      being appended; this is the same rotation trick the previous
+ *      (pre-best-thirds) version of this function used to avoid the obvious
+ *      same-group collision, not a claim of globally optimal seeding.
+ *
+ * Result: `[...firsts, ...rotatedSeconds]`.
  */
 export function buildGroupQualifiersSeedOrder(
   firsts: string[],
   seconds: string[],
-  rankedThirds: string[],
 ): string[] {
   const rotatedSeconds =
     seconds.length > 1 ? [...seconds.slice(1), seconds[0]] : [...seconds];
 
-  const interleaved: string[] = [];
-  for (let i = 0; i < firsts.length; i++) {
-    interleaved.push(firsts[i]);
-    if (rotatedSeconds[i] !== undefined) {
-      interleaved.push(rotatedSeconds[i]);
-    }
-  }
-
-  return [...interleaved, ...rankedThirds];
+  return [...firsts, ...rotatedSeconds];
 }
 
 /**

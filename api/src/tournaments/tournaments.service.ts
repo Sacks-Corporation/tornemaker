@@ -9,11 +9,13 @@ import { UtilsService } from '../utils/utils.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
 import {
+  computeEliminationAiFillTeamCount,
+  computeGroupDistribution,
+  computeGroupStageAiFillTeamCount,
   FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED,
-  GROUP_SIZE_OPTIONS_BY_TEAM_COUNT,
-  LEAGUE_MAX_TEAMS,
-  LEAGUE_MIN_TEAMS,
-  VALID_TEAM_COUNTS,
+  GROUP_CAP_MIN,
+  SWISS_TEAM_COUNTS,
+  TEAM_RANGE_BY_FORMAT,
 } from './dto/format-rules';
 import { DrawService } from './draw/draw.service';
 import { DrawTeamInput } from './draw/types';
@@ -58,7 +60,9 @@ export class TournamentsService {
     ownerId: string,
     dto: CreateTournamentDto,
   ): Promise<TournamentDocument> {
-    this.validateTeamCountAndGroupSize(dto);
+    this.validateTeamCount(dto);
+    this.validateGroupCap(dto);
+    this.validateAiFill(dto);
     this.validateThirdPlaceMatch(dto);
 
     const perTeam = await this.validateConsolesAndMatchMode(dto);
@@ -70,11 +74,30 @@ export class TournamentsService {
       playerNames: playersByTeamIndex.get(index) ?? [],
     }));
 
+    const aiFill = dto.aiFill ?? false;
+    const totalTeamCount = this.computeTotalTeamCountForDraw(dto, aiFill);
+    for (let i = dto.teamCount + 1; i <= totalTeamCount; i++) {
+      teamInputs.push({
+        name: `Equipo IA ${i - dto.teamCount}`,
+        playerNames: [],
+      });
+    }
+
+    if (dto.format === TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION) {
+      const distribution = computeGroupDistribution(
+        totalTeamCount,
+        dto.groupCap as number,
+      );
+      if (!distribution.valid) {
+        throw new BadRequestException(distribution.reason);
+      }
+    }
+
     const drawResult = this.drawService.generate(teamInputs, {
       format: dto.format,
       twoLegged: dto.twoLegged,
       thirdPlaceMatch: dto.thirdPlaceMatch,
-      groupSize: dto.groupSize,
+      groupCap: dto.groupCap,
     });
 
     const allowedConsoles = Array.from(new Set(dto.consoles));
@@ -87,6 +110,7 @@ export class TournamentsService {
       matchMode: dto.matchMode,
       consoleUnits: dto.consoles,
       allowedConsoles,
+      aiFill,
       teams: drawResult.teams,
       leagueStage: drawResult.leagueStage,
       knockoutStage: drawResult.knockoutStage,
@@ -96,6 +120,33 @@ export class TournamentsService {
     });
 
     return created.save();
+  }
+
+  /**
+   * Resolves the ACTUAL team count fed into the draw, applying `aiFill`
+   * (see `CreateTournamentDto.aiFill` doc) on top of the organizer-submitted
+   * `dto.teamCount`. Only SINGLE_ELIMINATION and GROUP_STAGE_PLUS_ELIMINATION
+   * support `aiFill` (enforced by `validateAiFill`), so every other format
+   * simply returns `dto.teamCount` unchanged.
+   */
+  private computeTotalTeamCountForDraw(
+    dto: CreateTournamentDto,
+    aiFill: boolean,
+  ): number {
+    if (!aiFill) {
+      return dto.teamCount;
+    }
+    switch (dto.format) {
+      case TournamentFormat.SINGLE_ELIMINATION:
+        return computeEliminationAiFillTeamCount(dto.teamCount);
+      case TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION:
+        return computeGroupStageAiFillTeamCount(
+          dto.teamCount,
+          dto.groupCap as number,
+        );
+      default:
+        return dto.teamCount;
+    }
   }
 
   /**
@@ -224,7 +275,7 @@ export class TournamentsService {
       format: tournament.format,
       twoLegged: this.resolveTwoLegged(tournament),
       thirdPlaceMatch: this.resolveThirdPlaceMatch(tournament),
-      groupSize: tournament.groupStage?.groupSize,
+      groupCap: tournament.groupStage?.groupCap,
     });
 
     tournament.state = INITIAL_STATE_BY_FORMAT[tournament.format];
@@ -378,46 +429,84 @@ export class TournamentsService {
     return matchMode.playersPerTeam;
   }
 
-  private validateTeamCountAndGroupSize(dto: CreateTournamentDto): void {
-    const { format, teamCount, groupSize } = dto;
+  /**
+   * Validates `dto.teamCount` against the RANGE (SINGLE_ELIMINATION,
+   * GROUP_STAGE_PLUS_ELIMINATION, LEAGUE) or closed set (SWISS_PLUS_ELIMINATION)
+   * that applies to `dto.format` — see `dto/format-rules.ts`. Note this
+   * always checks the REAL, organizer-submitted `teamCount` (`teams.length`)
+   * — `aiFill` padding is resolved and validated separately, AFTER this
+   * passes (see `computeTotalTeamCountForDraw` / the GROUP_STAGE distribution
+   * check in `create()`), so a small real `teamCount` can never bypass this
+   * range just because `aiFill` would later round it up.
+   */
+  private validateTeamCount(dto: CreateTournamentDto): void {
+    const { format, teamCount } = dto;
 
-    if (format === TournamentFormat.LEAGUE) {
-      if (
-        !Number.isInteger(teamCount) ||
-        teamCount < LEAGUE_MIN_TEAMS ||
-        teamCount > LEAGUE_MAX_TEAMS
-      ) {
+    if (format === TournamentFormat.SWISS_PLUS_ELIMINATION) {
+      if (!SWISS_TEAM_COUNTS.includes(teamCount)) {
         throw new BadRequestException(
-          `teamCount must be an integer between ${LEAGUE_MIN_TEAMS} and ${LEAGUE_MAX_TEAMS} for LEAGUE`,
+          `teamCount must be one of [${SWISS_TEAM_COUNTS.join(', ')}] for ${format}`,
         );
       }
-    } else {
-      const validCounts = VALID_TEAM_COUNTS[format];
-      if (validCounts && !validCounts.includes(teamCount)) {
-        throw new BadRequestException(
-          `teamCount must be one of [${validCounts.join(', ')}] for ${format}`,
-        );
-      }
+      return;
     }
 
-    if (format === TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION) {
-      if (groupSize === undefined) {
-        throw new BadRequestException(
-          'groupSize is required for GROUP_STAGE_PLUS_ELIMINATION',
-        );
-      }
-      const validGroupSizes = GROUP_SIZE_OPTIONS_BY_TEAM_COUNT[teamCount];
-      if (!validGroupSizes || !validGroupSizes.includes(groupSize)) {
-        throw new BadRequestException(
-          `groupSize=${groupSize} is not valid for teamCount=${teamCount}` +
-            (validGroupSizes
-              ? ` (valid options: [${validGroupSizes.join(', ')}])`
-              : ''),
-        );
-      }
-    } else if (groupSize !== undefined) {
+    const range = TEAM_RANGE_BY_FORMAT[format];
+    if (
+      range &&
+      (!Number.isInteger(teamCount) ||
+        teamCount < range.min ||
+        teamCount > range.max)
+    ) {
       throw new BadRequestException(
-        `groupSize is only allowed for GROUP_STAGE_PLUS_ELIMINATION, not ${format}`,
+        `teamCount must be an integer between ${range.min} and ${range.max} for ${format}`,
+      );
+    }
+  }
+
+  /**
+   * Validates `dto.groupCap`: required (and >= `GROUP_CAP_MIN`, already
+   * enforced by the DTO's `@Min(3)`) only for GROUP_STAGE_PLUS_ELIMINATION,
+   * forbidden otherwise. Does NOT validate the teamCount/groupCap
+   * COMBINATION here — that depends on the post-`aiFill` total team count,
+   * so it's checked in `create()` via `computeGroupDistribution` once that
+   * total is known.
+   */
+  private validateGroupCap(dto: CreateTournamentDto): void {
+    const { format, groupCap } = dto;
+
+    if (format === TournamentFormat.GROUP_STAGE_PLUS_ELIMINATION) {
+      if (groupCap === undefined) {
+        throw new BadRequestException(
+          'groupCap is required for GROUP_STAGE_PLUS_ELIMINATION',
+        );
+      }
+      if (groupCap < GROUP_CAP_MIN) {
+        throw new BadRequestException(
+          `groupCap must be an integer >= ${GROUP_CAP_MIN}`,
+        );
+      }
+    } else if (groupCap !== undefined) {
+      throw new BadRequestException(
+        `groupCap is only allowed for GROUP_STAGE_PLUS_ELIMINATION, not ${format}`,
+      );
+    }
+  }
+
+  /**
+   * `aiFill` is only meaningful for the formats that allow CPU/AI teams
+   * (`allowsAi` on `GET /utils/tournament-formats`) — SINGLE_ELIMINATION and
+   * GROUP_STAGE_PLUS_ELIMINATION. Rejected outright (not just ignored) for
+   * LEAGUE/SWISS_PLUS_ELIMINATION, which require every team to be assigned
+   * to a real player (see `FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED`).
+   */
+  private validateAiFill(dto: CreateTournamentDto): void {
+    if (
+      dto.aiFill &&
+      FORMATS_REQUIRING_ALL_TEAMS_ASSIGNED.includes(dto.format)
+    ) {
+      throw new BadRequestException(
+        `aiFill is not allowed for ${dto.format}: every team must be assigned to a real player`,
       );
     }
   }
