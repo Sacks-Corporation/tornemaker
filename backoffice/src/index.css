@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* Dark mode con estrategia de clase: se activa agregando `.dark` en <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Naranja (acento) — escala más clara que la de web/ */
+  --color-orange-50: #fff7f0;
+  --color-orange-100: #ffedd5;
+  --color-orange-200: #fed7aa;
+  --color-orange-300: #fdba74;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
+  --color-orange-600: #ea580c;
+  --color-orange-950: #431407;
+
+  /* Neutros (base blanca / grises fríos) */
+  --color-neutral-50: #fafafa;
+  --color-neutral-100: #f4f4f5;
+  --color-neutral-200: #e4e4e7;
+  --color-neutral-400: #a1a1aa;
+  --color-neutral-500: #71717a;
+  --color-neutral-800: #27272a;
+  --color-neutral-900: #18181b;
+  --color-neutral-950: #101012;
+
+  /* Tokens semánticos: light mode (valores por defecto).
+     El backoffice es predominantemente blanco: fondo casi blanco, superficies
+     blancas y el naranja claro solo como acento (botones, links activos). */
+  --color-background: var(--color-neutral-50);
+  --color-surface: #ffffff;
+  --color-primary: var(--color-orange-400);
+  --color-primary-hover: var(--color-orange-500);
+  --color-secondary: var(--color-orange-300);
+  --color-border: var(--color-neutral-200);
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral-500);
+  --color-sidebar: #ffffff;
+  /* Texto sobre `--color-primary`: como el naranja es claro, el contraste se
+     logra con un marrón muy oscuro (no varía entre temas a propósito). */
+  --color-on-primary: var(--color-orange-950);
+
+  /* Series de gráficos (Recharts). Se consumen vía CHART_COLORS en
+     utils/chart.utils.ts; en dark se aclaran para mantener contraste. */
+  --color-chart-1: #fb923c;
+  --color-chart-2: #f59e0b;
+  --color-chart-3: #14b8a6;
+  --color-chart-4: #3b82f6;
+  --color-chart-5: #8b5cf6;
+
+  /* Scrollbars acordes al tema (thumb / track) */
+  --color-scrollbar-thumb: var(--color-neutral-200);
+  --color-scrollbar-track: var(--color-neutral-50);
+
+  --font-sans:
+    'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+}
+
+/* Tokens semánticos: dark mode */
+.dark {
+  --color-background: var(--color-neutral-950);
+  --color-surface: var(--color-neutral-900);
+  --color-primary: var(--color-orange-300);
+  --color-primary-hover: var(--color-orange-200);
+  --color-secondary: var(--color-orange-400);
+  --color-border: var(--color-neutral-800);
+  --color-text: var(--color-neutral-100);
+  --color-text-muted: var(--color-neutral-400);
+  --color-sidebar: var(--color-neutral-900);
+
+  --color-chart-1: #fdba74;
+  --color-chart-2: #fbbf24;
+  --color-chart-3: #2dd4bf;
+  --color-chart-4: #60a5fa;
+  --color-chart-5: #a78bfa;
+
+  --color-scrollbar-thumb: var(--color-neutral-800);
+  --color-scrollbar-track: var(--color-neutral-950);
+}
+
+/* Scrollbars con los colores del tema. `scrollbar-color` es heredable, así
+   aplica a todos los contenedores con overflow (tablas, gráficos). Las reglas
+   ::-webkit-* quedan como fallback para Chromium viejo. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-scrollbar-thumb);
+  border-radius: 9999px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
