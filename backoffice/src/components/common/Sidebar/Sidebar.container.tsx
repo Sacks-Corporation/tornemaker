@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import Sidebar from './Sidebar'
 import type { SidebarNavItem, SidebarProps } from './Sidebar'
 import { useTheme } from '../../../hooks/common/useTheme'
+import { useAuth } from '../../../hooks/auth/useAuth'
 
 function DashboardIcon() {
   return (
@@ -20,6 +21,7 @@ function DashboardIcon() {
 function SidebarContainer() {
   const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
+  const { logout } = useAuth()
 
   // Ítems de navegación del backoffice: agregá acá las páginas nuevas.
   const items: SidebarNavItem[] = [
@@ -46,6 +48,8 @@ function SidebarContainer() {
       theme={theme}
       themeToggleLabel={themeToggleLabel}
       onToggleTheme={toggleTheme}
+      logoutLabel={t('common.sidebar.logout')}
+      onLogout={logout}
     />
   )
 }

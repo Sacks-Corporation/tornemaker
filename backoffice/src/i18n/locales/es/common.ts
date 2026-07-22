@@ -6,6 +6,7 @@ const common = {
     dashboard: 'Dashboard',
     toggleThemeToLight: 'Cambiar a modo claro',
     toggleThemeToDark: 'Cambiar a modo oscuro',
+    logout: 'Cerrar sesión',
   },
   footer: {
     copyright: '© {{year}} · Sacks Corporation. Todos los derechos reservados.',

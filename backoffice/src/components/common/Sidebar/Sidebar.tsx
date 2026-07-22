@@ -21,6 +21,8 @@ export interface SidebarProps {
   theme: ThemeMode
   themeToggleLabel: string
   onToggleTheme: () => void
+  logoutLabel: string
+  onLogout: () => void
 }
 
 function SunIcon() {
@@ -51,6 +53,20 @@ function MoonIcon() {
   )
 }
 
+function LogoutIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="h-5 w-5 shrink-0"
+      aria-hidden="true"
+    >
+      <path d="M10 3a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V5H5v14h4v-1a1 1 0 1 1 2 0v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5Zm7.29 5.29 3.42 3.42a1 1 0 0 1 0 1.42l-3.42 3.42a1 1 0 0 1-1.42-1.42L17.59 13H10a1 1 0 1 1 0-2h7.59l-1.72-1.71a1 1 0 0 1 1.42-1.42Z" />
+    </svg>
+  )
+}
+
 // Sidebar vertical fijo a la izquierda: marca, navegación y toggle de tema.
 // En pantallas chicas colapsa a solo íconos; desde `lg` muestra los labels.
 function Sidebar({
@@ -61,6 +77,8 @@ function Sidebar({
   theme,
   themeToggleLabel,
   onToggleTheme,
+  logoutLabel,
+  onLogout,
 }: SidebarProps) {
   return (
     <aside
@@ -108,8 +126,19 @@ function Sidebar({
         </ul>
       </nav>
 
-      {/* Toggle de tema */}
-      <div className="border-t border-border p-2 lg:p-3">
+      {/* Cerrar sesión y toggle de tema */}
+      <div className="flex flex-col gap-1 border-t border-border p-2 lg:p-3">
+        <button
+          type="button"
+          onClick={onLogout}
+          aria-label={logoutLabel}
+          title={logoutLabel}
+          className="flex w-full items-center justify-center gap-3 rounded-lg px-2 py-2.5 text-sm font-medium text-text-muted transition-colors duration-150 hover:bg-primary/10 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary lg:justify-start lg:px-3"
+        >
+          <LogoutIcon />
+          <span className="hidden truncate lg:inline">{logoutLabel}</span>
+        </button>
+
         <button
           type="button"
           onClick={onToggleTheme}

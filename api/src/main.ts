@@ -9,9 +9,14 @@ async function bootstrap() {
   // frontend's configured API base URL.
   app.setGlobalPrefix('api');
 
-  // Allow the frontend origin to call this API with credentials/headers.
+  // Allow the frontend origins to call this API with credentials/headers.
+  // Defaults cover both the public site (web/, 5173) and the backoffice
+  // (backoffice/, 5174). CORS_ORIGIN can override with a comma-separated list.
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()) ?? [
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ],
   });
 
   // Global validation pipe — uses class-validator + class-transformer to

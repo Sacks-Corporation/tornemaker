@@ -1,13 +1,24 @@
 import { createBrowserRouter } from 'react-router-dom'
 import SidebarLayout from '../components/common/SidebarLayout'
+import ProtectedRoute from '../components/common/ProtectedRoute'
 import DashboardPage from '../components/pages/DashboardPage'
+import LoginPage from '../components/pages/LoginPage'
 
-// SidebarLayout es la ruta layout: todas las páginas se renderizan dentro de
-// su <Outlet /> para compartir sidebar y footer.
+// /login es pública y no lleva SidebarLayout. Todo lo demás cuelga de
+// SidebarLayout envuelto en ProtectedRoute: sin sesión, redirige a /login;
+// toda página futura del sidebar queda protegida automáticamente.
 const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
     path: '/',
-    element: <SidebarLayout />,
+    element: (
+      <ProtectedRoute>
+        <SidebarLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,

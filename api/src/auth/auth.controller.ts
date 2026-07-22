@@ -12,7 +12,8 @@ import type { UserDocument } from '../users/schemas/user.schema';
 import { toUserResponse } from '../users/user-response';
 import type { UserResponse } from '../users/user-response';
 import { AuthService } from './auth.service';
-import type { AuthResult } from './auth.service';
+import type { AuthResult, BackofficeAuthResult } from './auth.service';
+import { BackofficeLoginDto } from './dto/backoffice-login.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -94,5 +95,27 @@ export class AuthController {
   @Get('me')
   getProfile(@Request() req: { user: UserDocument }): UserResponse {
     return toUserResponse(req.user);
+  }
+
+  /**
+   * POST /auth/backoffice/login
+   *
+   * Backoffice admin login: email/password only (bcrypt hash comparison
+   * against the separate `admins` collection) — no Google, no refresh
+   * tokens. The `backoffice/` segment just distinguishes this from the
+   * regular user login above; both live here in AuthController because both
+   * are authentication. Same generic "invalid credentials" message for both
+   * a non-existent email and a wrong password, to avoid leaking which one
+   * failed. Returns our JWT (with a `role: 'admin'` claim so it can be told
+   * apart from a regular user token) plus the admin's public profile.
+   *
+   * Body: { email, password }
+   * Response (201, default Nest status for POST): { accessToken, admin: { id, email } }
+   */
+  @Post('backoffice/login')
+  loginBackoffice(
+    @Body() dto: BackofficeLoginDto,
+  ): Promise<BackofficeAuthResult> {
+    return this.authService.loginBackoffice(dto.email, dto.password);
   }
 }

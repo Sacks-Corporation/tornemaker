@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
+import { AdminsService } from '../admins/admins.service';
+import { AdminDocument } from '../admins/schemas/admin.schema';
 import { toUserResponse, UserResponse } from '../users/user-response';
 import { UserDocument } from '../users/schemas/user.schema';
 import { UsersService } from '../users/users.service';
@@ -13,12 +15,18 @@ export interface AuthResult {
   user: UserResponse;
 }
 
+export interface BackofficeAuthResult {
+  accessToken: string;
+  admin: { id: string; email: string };
+}
+
 @Injectable()
 export class AuthService {
   private readonly googleClient: OAuth2Client;
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly adminsService: AdminsService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {
@@ -106,6 +114,34 @@ export class AuthService {
     return { accessToken: this.signJwt(user), user: toUserResponse(user) };
   }
 
+  /**
+   * Validates backoffice admin credentials (email/password only — no
+   * Google, no refresh tokens) and returns a signed JWT carrying
+   * `role: 'admin'` so it can be told apart from a regular user token.
+   * Uses the same generic "invalid credentials" message for both a
+   * non-existent email and a wrong password, to avoid leaking which one
+   * failed (same approach as `login` above).
+   */
+  async loginBackoffice(
+    email: string,
+    password: string,
+  ): Promise<BackofficeAuthResult> {
+    const admin = await this.adminsService.findByEmail(email);
+    if (!admin) {
+      throw new UnauthorizedException('INVALID_CREDENTIALS');
+    }
+
+    const passwordMatches = await bcrypt.compare(password, admin.password);
+    if (!passwordMatches) {
+      throw new UnauthorizedException('INVALID_CREDENTIALS');
+    }
+
+    return {
+      accessToken: this.signAdminJwt(admin),
+      admin: { id: this.toId(admin), email: admin.email },
+    };
+  }
+
   private async verifyGoogleToken(idToken: string): Promise<{
     googleId: string;
     email: string;
@@ -138,9 +174,22 @@ export class AuthService {
 
   private signJwt(user: UserDocument): string {
     const payload: JwtPayload = {
-      sub: (user._id as { toString(): string }).toString(),
+      sub: this.toId(user),
       email: user.email,
     };
     return this.jwtService.sign(payload);
+  }
+
+  private signAdminJwt(admin: AdminDocument): string {
+    const payload: JwtPayload = {
+      sub: this.toId(admin),
+      email: admin.email,
+      role: 'admin',
+    };
+    return this.jwtService.sign(payload);
+  }
+
+  private toId(doc: UserDocument | AdminDocument): string {
+    return (doc._id as { toString(): string }).toString();
   }
 }
