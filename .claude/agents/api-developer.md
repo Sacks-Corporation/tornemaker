@@ -116,3 +116,8 @@ estado, fechas) y un campo flexible/placeholder para la estructura, pero sin asu
 8. Tras cambios relevantes, verificá que el proyecto compile/buildee sin errores;
    reportá el resultado real.
 9. Mantené el estilo y las idioms del código existente.
+10. Cuando el usuario pida un endpoint con paginado (aunque no nombre la skill
+    explícitamente — p. ej. "paginación", "paginated", query params `page`/`pageSize`),
+    ejecutá/seguí la skill `paginated-endpoint`
+    (`.claude/skills/paginated-endpoint/SKILL.md`) antes de implementarlo, y
+    reutilizá el código compartido de `api/src/common/pagination/`.

@@ -157,6 +157,9 @@ router → SidebarLayout → page (container) → hooks → api (funciones) → 
 1. Antes de crear algo nuevo, **explorá** la carpeta correspondiente para reutilizar
    patrones, instancias, tipos y componentes existentes (y mirá `web/` como
    referencia de idioms cuando falte un patrón acá).
+1.b. Cuando el usuario pida una página de tipo grilla/tabla/listado servida por
+   un endpoint paginado (aunque no nombre la skill), seguí la skill
+   `paginated-grid` antes de implementarla.
 2. Respetá el patrón **container / presentacional** en todos los componentes.
 3. Nunca hardcodees strings de UI: usá i18n.
 4. Nunca llames a axios desde un componente: pasá siempre por `api/` vía hooks,
