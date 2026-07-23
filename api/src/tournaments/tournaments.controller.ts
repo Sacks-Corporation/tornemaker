@@ -8,10 +8,13 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PaginatedResult, PaginationQueryDto } from '../common/pagination';
 import type { UserDocument } from '../users/schemas/user.schema';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
@@ -21,6 +24,7 @@ import {
   SerializedTournamentSummary,
 } from './progression/serialize';
 import { TournamentDocument } from './schemas/tournament.schema';
+import { TournamentListItem } from './tournament-list-item';
 import { TournamentsService } from './tournaments.service';
 
 @Controller('tournaments')
@@ -66,6 +70,31 @@ export class TournamentsController {
   ): Promise<SerializedTournamentSummary[]> {
     const ownerId = (req.user._id as { toString(): string }).toString();
     return this.tournamentsService.findAllForOwner(ownerId);
+  }
+
+  /**
+   * GET /tournaments/backoffice
+   *
+   * Paginated listing of EVERY tournament across ALL users (not scoped to
+   * an owner), for the backoffice's tournaments screen — see
+   * `.claude/skills/paginated-endpoint/SKILL.md` for the shared
+   * `{ data, total, page, pageSize }` contract. Each item is lightweight
+   * (no fixtures/matches/standings/bracket) — see `TournamentListItem`.
+   *
+   * Restricted to backoffice admins: `JwtAuthGuard` authenticates the token,
+   * then `AdminGuard` rejects anything that isn't an admin token with 403 —
+   * same pattern as `GET /users`.
+   *
+   * Declared BEFORE `@Get(':id')` (static routes first — same style as
+   * `GET /tournaments` above): otherwise `@Get(':id')` would capture
+   * "backoffice" as the `:id` param, since both match a single path segment.
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get('backoffice')
+  findAllForBackoffice(
+    @Query() query: PaginationQueryDto,
+  ): Promise<PaginatedResult<TournamentListItem>> {
+    return this.tournamentsService.findAllPaginatedForBackoffice(query);
   }
 
   /**

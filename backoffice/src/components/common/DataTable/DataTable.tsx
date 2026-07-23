@@ -290,7 +290,7 @@ function DataTable<T>({
                             : undefined
                       }
                       className={[
-                        'px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted',
+                        'whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted',
                         alignClasses[align],
                       ].join(' ')}
                     >
@@ -358,7 +358,7 @@ function DataTable<T>({
                     return (
                       <td
                         key={cell.id}
-                        className={['px-4 py-3 text-text', alignClasses[align]].join(' ')}
+                        className={['whitespace-nowrap px-4 py-3 text-text', alignClasses[align]].join(' ')}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>

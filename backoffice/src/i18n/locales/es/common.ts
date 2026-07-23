@@ -5,6 +5,7 @@ const common = {
     navLabel: 'Navegación principal',
     dashboard: 'Dashboard',
     users: 'Usuarios',
+    tournaments: 'Torneos',
     toggleThemeToLight: 'Cambiar a modo claro',
     toggleThemeToDark: 'Cambiar a modo oscuro',
     logout: 'Cerrar sesión',

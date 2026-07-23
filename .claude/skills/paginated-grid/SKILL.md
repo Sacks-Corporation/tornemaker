@@ -72,6 +72,16 @@ availableHeight = window.innerHeight
 pageSize = max(minPageSize, floor(availableHeight / alto de fila))
 ```
 
+IMPORTANTE — la garantía "sin scroll" depende de que TODAS las filas midan lo
+mismo (el `alto de fila` es una constante fija). Por eso las celdas del
+`DataTable` son de **una sola línea** (`whitespace-nowrap` en `<td>`/`<th>`): si
+el contenido wrappeara a 2 líneas (nombres largos, fecha+hora en columnas
+angostas, headers largos), las filas quedarían más altas que la constante, el
+cálculo overshootearía y volvería el scroll vertical. Contenido que no entra
+desborda por el `overflow-x-auto` de la tabla (scroll horizontal), nunca hacia
+abajo. Para fechas en grillas con muchas columnas, preferí `formatDate` (solo
+fecha) sobre `formatDateTime` para no ensanchar/wrappear la celda.
+
 Devuelve `number | undefined`: `undefined` hasta la primera medición. Medí
 **sincrónicamente dentro de `useLayoutEffect`** (ahí el layout ya está
 calculado, así que el rect es válido) y commiteá ese primer valor de una.

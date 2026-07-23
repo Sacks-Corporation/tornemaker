@@ -10,10 +10,17 @@ const RESIZE_DEBOUNCE_MS = 150
 // aproximaciones deliberadas (no hace falta pixel-perfect): el objetivo es
 // nunca pedir de más y generar scroll, así que se redondea hacia abajo.
 const TABLE_HEADER_HEIGHT_PX = 41
-const PAGINATION_BAR_HEIGHT_PX = 41
+// Barra de paginación: px-4 py-2 con botones h-8 (32) + py-2 (16) + border-t
+// (1) ≈ 49px medidos. Subestimarla metía una fila de más y volvía el scroll.
+const PAGINATION_BAR_HEIGHT_PX = 49
 const FOOTER_HEIGHT_PX = 37
 // Fila de datos: px-4 py-3 (24px) + line-height text-sm (~20px) + border-b (1px).
 const ROW_HEIGHT_PX = 45
+// Colchón de seguridad para bordes/gaps/sub-píxeles que el modelo de constantes
+// no captura exactamente: garantiza redondear hacia ABAJO cuando estamos al
+// borde de una fila, para no overshootear nunca (el usuario prioriza "sin
+// scroll" sobre encajar una fila extra).
+const SAFETY_MARGIN_PX = 12
 const MIN_PAGE_SIZE = 5
 
 // Breakpoints de Tailwind usados por el `<main>` de `SidebarLayout` (p-4
@@ -63,7 +70,8 @@ export function useAutoPageSize({
       getMainBottomPaddingPx(window.innerWidth) +
       TABLE_HEADER_HEIGHT_PX +
       PAGINATION_BAR_HEIGHT_PX +
-      FOOTER_HEIGHT_PX
+      FOOTER_HEIGHT_PX +
+      SAFETY_MARGIN_PX
 
     const availableHeight = window.innerHeight - reservedHeight
     const rowsThatFit = Math.floor(availableHeight / ROW_HEIGHT_PX)

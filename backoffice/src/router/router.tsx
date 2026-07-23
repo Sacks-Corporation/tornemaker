@@ -3,6 +3,7 @@ import SidebarLayout from '../components/common/SidebarLayout'
 import ProtectedRoute from '../components/common/ProtectedRoute'
 import DashboardPage from '../components/pages/DashboardPage'
 import UsersPage from '../components/pages/UsersPage'
+import TournamentsPage from '../components/pages/TournamentsPage'
 import LoginPage from '../components/pages/LoginPage'
 
 // /login es pública y no lleva SidebarLayout. Todo lo demás cuelga de
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
       {
         path: 'users',
         element: <UsersPage />,
+      },
+      {
+        path: 'tournaments',
+        element: <TournamentsPage />,
       },
     ],
   },

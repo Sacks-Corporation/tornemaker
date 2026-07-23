@@ -5,6 +5,12 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import {
+  buildPaginatedResult,
+  getPaginationSkip,
+  PaginatedResult,
+  PaginationQueryDto,
+} from '../common/pagination';
 import { UtilsService } from '../utils/utils.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { RecordMatchResultDto } from './dto/record-match-result.dto';
@@ -37,6 +43,11 @@ import {
   TournamentDocument,
   TournamentStatus,
 } from './schemas/tournament.schema';
+import {
+  toTournamentListItem,
+  TournamentListAggregationRow,
+  TournamentListItem,
+} from './tournament-list-item';
 
 /** Initial `Tournament.state` derived from `format` — see tournament-state.enum.ts. */
 const INITIAL_STATE_BY_FORMAT: Record<TournamentFormat, TournamentState> = {
@@ -168,6 +179,61 @@ export class TournamentsService {
       .sort({ createdAt: -1 })
       .exec();
     return tournaments.map(serializeTournamentSummary);
+  }
+
+  /**
+   * GET /tournaments/backoffice — paginated listing of EVERY tournament
+   * across ALL users (not scoped to an owner), for the backoffice admin
+   * screen — see `.claude/skills/paginated-endpoint/SKILL.md` for the shared
+   * `{ data, total, page, pageSize }` contract. Restricted to admins at the
+   * controller level (`JwtAuthGuard` + `AdminGuard`), same pattern as
+   * `GET /users`.
+   *
+   * Unlike every other listing/lookup in this service, soft-deleted
+   * tournaments (`state = DELETED`) are INCLUDED here on purpose: the
+   * backoffice needs full visibility over every tournament ever created,
+   * deleted or not. Sorted by most recently created first.
+   *
+   * Uses an aggregation pipeline instead of `find()` because the Tournament
+   * document embeds potentially large arrays (teams, matches, standings,
+   * bracket) that must never be fetched just to list/count tournaments: the
+   * `$project` stage only ever materializes the lightweight fields
+   * `TournamentListItem` needs, computing `teamCount`/`consoleCount` via
+   * `$size` instead of returning the `teams`/`consoleUnits` arrays
+   * themselves. The data aggregation and the `countDocuments` (same filter)
+   * run in parallel.
+   */
+  async findAllPaginatedForBackoffice(
+    query: PaginationQueryDto,
+  ): Promise<PaginatedResult<TournamentListItem>> {
+    const { page, pageSize } = query;
+
+    const [rows, total] = await Promise.all([
+      this.tournamentModel
+        .aggregate<TournamentListAggregationRow>([
+          { $match: {} },
+          { $sort: { createdAt: -1 } },
+          { $skip: getPaginationSkip(page, pageSize) },
+          { $limit: pageSize },
+          {
+            $project: {
+              name: 1,
+              format: 1,
+              status: 1,
+              state: 1,
+              createdAt: 1,
+              updatedAt: 1,
+              teamCount: { $size: '$teams' },
+              consoleCount: { $size: '$consoleUnits' },
+            },
+          },
+        ])
+        .exec(),
+      this.tournamentModel.countDocuments({}).exec(),
+    ]);
+
+    const data = rows.map(toTournamentListItem);
+    return buildPaginatedResult(data, total, page, pageSize);
   }
 
   /**

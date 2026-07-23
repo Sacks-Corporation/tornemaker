@@ -194,3 +194,6 @@ export const TournamentSchema = SchemaFactory.createForClass(Tournament);
 TournamentSchema.index({ ownerId: 1, status: 1 });
 // Secondary: recency-ordered listing of a user's tournaments.
 TournamentSchema.index({ ownerId: 1, createdAt: -1 });
+// Backoffice: recency-ordered listing across ALL users, excluding DELETED —
+// backs GET /tournaments/backoffice (TournamentsService.findAllPaginatedForBackoffice).
+TournamentSchema.index({ state: 1, createdAt: -1 });
