@@ -10,6 +10,10 @@ import {
   getPaginationSkip,
   PaginatedResult,
   PaginationQueryDto,
+  resolveSortStage,
+  SortDefault,
+  SortDirection,
+  SortWhitelist,
 } from '../common/pagination';
 import { UtilsService } from '../utils/utils.service';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
@@ -48,6 +52,31 @@ import {
   TournamentListAggregationRow,
   TournamentListItem,
 } from './tournament-list-item';
+
+/**
+ * Whitelist for `GET /tournaments/backoffice`'s `sortField` query param
+ * (fieldApi -> fieldDb, see `resolveSortStage`). `teamCount`/`consoleCount`
+ * are COMPUTED via `$size` in the `$project` stage of the aggregation, not
+ * stored fields — sorting by them requires the `$sort` stage to run AFTER
+ * `$project` (see `findAllPaginatedForBackoffice`), which is why the same
+ * name works here even though it isn't a raw document field.
+ */
+const TOURNAMENTS_BACKOFFICE_SORT_WHITELIST: SortWhitelist = {
+  name: 'name',
+  format: 'format',
+  state: 'state',
+  updatedAt: 'updatedAt',
+  createdAt: 'createdAt',
+  teamCount: 'teamCount',
+  consoleCount: 'consoleCount',
+};
+
+/** Default order for `GET /tournaments/backoffice` when `sortField` is
+ *  absent/invalid. */
+const TOURNAMENTS_BACKOFFICE_SORT_DEFAULT: SortDefault = {
+  field: 'createdAt',
+  direction: SortDirection.DESC,
+};
 
 /** Initial `Tournament.state` derived from `format` — see tournament-state.enum.ts. */
 const INITIAL_STATE_BY_FORMAT: Record<TournamentFormat, TournamentState> = {
@@ -202,19 +231,31 @@ export class TournamentsService {
    * `$size` instead of returning the `teams`/`consoleUnits` arrays
    * themselves. The data aggregation and the `countDocuments` (same filter)
    * run in parallel.
+   *
+   * `sortField`/`sortDirection` are resolved against
+   * `TOURNAMENTS_BACKOFFICE_SORT_WHITELIST` via `resolveSortStage` (falls
+   * back to `TOURNAMENTS_BACKOFFICE_SORT_DEFAULT` when absent/invalid) —
+   * see `.claude/skills/paginated-endpoint/SKILL.md`. The `$sort` stage is
+   * placed AFTER `$project` (not before) on purpose: `teamCount`/
+   * `consoleCount` only exist once `$project` computes them via `$size`, so
+   * sorting on those two fields would be impossible if `$sort` ran first.
+   * `$skip`/`$limit` stay AFTER `$sort`, same as before.
    */
   async findAllPaginatedForBackoffice(
     query: PaginationQueryDto,
   ): Promise<PaginatedResult<TournamentListItem>> {
-    const { page, pageSize } = query;
+    const { page, pageSize, sortField, sortDirection } = query;
+    const sortStage = resolveSortStage(
+      sortField,
+      sortDirection,
+      TOURNAMENTS_BACKOFFICE_SORT_WHITELIST,
+      TOURNAMENTS_BACKOFFICE_SORT_DEFAULT,
+    );
 
     const [rows, total] = await Promise.all([
       this.tournamentModel
         .aggregate<TournamentListAggregationRow>([
           { $match: {} },
-          { $sort: { createdAt: -1 } },
-          { $skip: getPaginationSkip(page, pageSize) },
-          { $limit: pageSize },
           {
             $project: {
               name: 1,
@@ -227,6 +268,9 @@ export class TournamentsService {
               consoleCount: { $size: '$consoleUnits' },
             },
           },
+          { $sort: sortStage },
+          { $skip: getPaginationSkip(page, pageSize) },
+          { $limit: pageSize },
         ])
         .exec(),
       this.tournamentModel.countDocuments({}).exec(),

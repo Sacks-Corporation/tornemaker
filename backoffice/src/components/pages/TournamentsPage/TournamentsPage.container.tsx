@@ -5,15 +5,30 @@ import DataTable from '../../common/DataTable'
 import { useGetTournaments } from '../../../hooks/tournaments/useGetTournaments'
 import { useAutoPageSize } from '../../../hooks/common/useAutoPageSize'
 import { formatDate } from '../../../utils/date.utils'
-import type { DataTableColumn, DataTableDataResult } from '../../../types/common.types'
+import type {
+  DataTableColumn,
+  DataTableDataResult,
+  SortDirection,
+} from '../../../types/common.types'
 import type { TournamentListItem } from '../../../types/tournaments.types'
 
 function TournamentsPageContainer() {
   const { t } = useTranslation()
 
   const [page, setPage] = useState(1)
+  // `sortField`/`sortDirection` son obligatorios (la API los exige): arrancan
+  // con un orden por defecto (más recientes primero) que siempre se manda,
+  // hasta que el usuario clickea un header.
+  const [sortField, setSortField] = useState<string>('createdAt')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const pageSize = useAutoPageSize({ containerRef: tableContainerRef })
+
+  const handleSortChange = (field: string, direction: SortDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+    setPage(1)
+  }
 
   // Hook "puente" entre `useGetTournaments` (TanStack Query, devuelve el
   // `PaginatedResponse` completo) y el contrato `DataTableDataResult` que
@@ -26,7 +41,12 @@ function TournamentsPageContainer() {
   // está deshabilitado (no dispara fetch) — se fuerza `isLoading: true` acá
   // para que `DataTable` siga mostrando el skeleton en vez de "no hay datos".
   const useTournamentsTableData = (): DataTableDataResult<TournamentListItem> => {
-    const { data, isLoading, isError } = useGetTournaments(page, pageSize)
+    const { data, isLoading, isError } = useGetTournaments(
+      page,
+      pageSize,
+      sortField,
+      sortDirection,
+    )
     return {
       data: data?.data,
       isLoading: pageSize === undefined || isLoading,
@@ -77,6 +97,13 @@ function TournamentsPageContainer() {
         sortable: true,
       },
       {
+        id: 'createdAt',
+        header: t('tournaments.columns.createdAt'),
+        accessor: (row) => row.createdAt,
+        render: (row) => formatDate(row.createdAt),
+        sortable: true,
+      },
+      {
         id: 'updatedAt',
         header: t('tournaments.columns.updatedAt'),
         accessor: (row) => row.updatedAt,
@@ -99,6 +126,9 @@ function TournamentsPageContainer() {
           pageSize={pageSize}
           page={page}
           onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
           getRowId={(row) => row.id}
         />
       }

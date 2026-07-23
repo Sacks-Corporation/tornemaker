@@ -7,6 +7,10 @@ import {
   getPaginationSkip,
   PaginatedResult,
   PaginationQueryDto,
+  resolveSortStage,
+  SortDefault,
+  SortDirection,
+  SortWhitelist,
 } from '../common/pagination';
 import { User, UserDocument } from './schemas/user.schema';
 import { toUserListItem, UserListItem } from './user-list-item';
@@ -18,6 +22,31 @@ const SALT_ROUNDS = 10;
  *  `UserListItem`/`toUserListItem` stay in sync. */
 const LIST_PROJECTION =
   'firstName lastName email updatedAt lastSignedIn state provider';
+
+/**
+ * Whitelist for `GET /users`'s `sortField` query param (fieldApi -> fieldDb,
+ * see `resolveSortStage`). `name` sorts by `firstName` with `lastName` as a
+ * secondary tie-breaker. `createdAt` is whitelisted explicitly (rather than
+ * relying on it only being the fallback default) since the frontend sends it
+ * as its default `sortField`. Deliberately does NOT include `state`: it's the
+ * EFFECTIVE state computed at read time by `toUserListItem`/
+ * `computeEffectiveUserState`, not a stored field this endpoint can sort on
+ * without turning it into an aggregation — out of scope for now.
+ */
+const USERS_SORT_WHITELIST: SortWhitelist = {
+  name: ['firstName', 'lastName'],
+  email: 'email',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  lastSignedIn: 'lastSignedIn',
+  provider: 'provider',
+};
+
+/** Default order for `GET /users` when `sortField` is absent/invalid. */
+const USERS_SORT_DEFAULT: SortDefault = {
+  field: 'createdAt',
+  direction: SortDirection.DESC,
+};
 
 export interface GoogleUserPayload {
   googleId: string;
@@ -187,18 +216,27 @@ export class UsersService {
    * item's `state` is the EFFECTIVE state, computed fresh on every call by
    * `toUserListItem` — never trusted straight from the stored document. See
    * `.claude/skills/paginated-endpoint/SKILL.md` for the shared pagination
-   * contract (`buildPaginatedResult`/`getPaginationSkip`).
+   * contract (`buildPaginatedResult`/`getPaginationSkip`) and the server-side
+   * sorting contract (`sortField`/`sortDirection` resolved against
+   * `USERS_SORT_WHITELIST` via `resolveSortStage`; falls back to
+   * `USERS_SORT_DEFAULT` when `sortField` is absent/not whitelisted).
    */
   async findAllPaginated(
     query: PaginationQueryDto,
   ): Promise<PaginatedResult<UserListItem>> {
-    const { page, pageSize } = query;
+    const { page, pageSize, sortField, sortDirection } = query;
+    const sortStage = resolveSortStage(
+      sortField,
+      sortDirection,
+      USERS_SORT_WHITELIST,
+      USERS_SORT_DEFAULT,
+    );
 
     const [docs, total] = await Promise.all([
       this.userModel
         .find()
         .select(LIST_PROJECTION)
-        .sort({ createdAt: -1 })
+        .sort(sortStage)
         .skip(getPaginationSkip(page, pageSize))
         .limit(pageSize)
         .exec(),

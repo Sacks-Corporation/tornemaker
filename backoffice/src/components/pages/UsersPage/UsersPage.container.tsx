@@ -5,15 +5,30 @@ import DataTable from '../../common/DataTable'
 import { useGetUsers } from '../../../hooks/users/useGetUsers'
 import { useAutoPageSize } from '../../../hooks/common/useAutoPageSize'
 import { formatDateTime } from '../../../utils/date.utils'
-import type { DataTableColumn, DataTableDataResult } from '../../../types/common.types'
+import type {
+  DataTableColumn,
+  DataTableDataResult,
+  SortDirection,
+} from '../../../types/common.types'
 import type { UserListItem } from '../../../types/users.types'
 
 function UsersPageContainer() {
   const { t } = useTranslation()
 
   const [page, setPage] = useState(1)
+  // `sortField`/`sortDirection` son obligatorios (la API los exige): arrancan
+  // con un orden por defecto (más recientes primero) que siempre se manda,
+  // hasta que el usuario clickea un header.
+  const [sortField, setSortField] = useState<string>('createdAt')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const pageSize = useAutoPageSize({ containerRef: tableContainerRef })
+
+  const handleSortChange = (field: string, direction: SortDirection) => {
+    setSortField(field)
+    setSortDirection(direction)
+    setPage(1)
+  }
 
   // Hook "puente" entre `useGetUsers` (TanStack Query, devuelve el
   // `PaginatedResponse` completo) y el contrato `DataTableDataResult` que
@@ -26,7 +41,7 @@ function UsersPageContainer() {
   // deshabilitado (no dispara fetch) — se fuerza `isLoading: true` acá para
   // que `DataTable` siga mostrando el skeleton en vez de "no hay datos".
   const useUsersTableData = (): DataTableDataResult<UserListItem> => {
-    const { data, isLoading, isError } = useGetUsers(page, pageSize)
+    const { data, isLoading, isError } = useGetUsers(page, pageSize, sortField, sortDirection)
     return {
       data: data?.data,
       isLoading: pageSize === undefined || isLoading,
@@ -68,7 +83,10 @@ function UsersPageContainer() {
         header: t('users.columns.state'),
         accessor: (row) => row.state,
         render: (row) => <UserStateBadge state={row.state} label={t(`users.states.${row.state}`)} />,
-        sortable: true,
+        // `state` es un estado EFECTIVO calculado por el backend en cada
+        // request (no un campo persistido): la API no lo soporta como
+        // `sortField`, así que no se ofrece como columna ordenable.
+        sortable: false,
       },
       {
         id: 'provider',
@@ -93,6 +111,9 @@ function UsersPageContainer() {
           pageSize={pageSize}
           page={page}
           onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSortChange={handleSortChange}
           getRowId={(row) => row.id}
         />
       }

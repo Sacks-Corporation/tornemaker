@@ -26,6 +26,11 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export type DataTableAlign = 'left' | 'center' | 'right'
 
+// Dirección de sorting server-side. Espejo del contrato `sortDirection` que
+// esperan los endpoints paginados (junto con `sortField`); ver
+// `.claude/skills/paginated-grid`.
+export type SortDirection = 'asc' | 'desc'
+
 // Valor "crudo" de una celda: se usa tanto para renderizar (si no hay `render`)
 // como para ordenar, por eso debe ser un primitivo y no un ReactNode.
 export type DataTableCellValue = string | number | boolean | null | undefined

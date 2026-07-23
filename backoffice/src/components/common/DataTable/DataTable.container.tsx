@@ -6,6 +6,7 @@ import type {
   DataTableAction,
   DataTableColumn,
   DataTableDataResult,
+  SortDirection,
 } from '../../../types/common.types'
 
 export interface DataTableProps<T> {
@@ -30,6 +31,15 @@ export interface DataTableProps<T> {
    */
   page?: number
   onPageChange?: (page: number) => void
+  /**
+   * Sorting controlado server-side (ver `DataTableViewProps` en
+   * `DataTable.tsx`). Solo tiene sentido junto al modo server-side de
+   * paginación: sin `onSortChange`, el sorting queda en memoria como
+   * siempre.
+   */
+  sortField?: string
+  sortDirection?: SortDirection
+  onSortChange?: (field: string, direction: SortDirection) => void
 }
 
 function DataTableContainer<T>({
@@ -40,6 +50,9 @@ function DataTableContainer<T>({
   getRowId,
   page,
   onPageChange,
+  sortField,
+  sortDirection,
+  onSortChange,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const { data, isLoading, isError, total } = useData()
@@ -71,6 +84,9 @@ function DataTableContainer<T>({
       page={page}
       total={total}
       onPageChange={onPageChange}
+      sortField={sortField}
+      sortDirection={sortDirection}
+      onSortChange={onSortChange}
     />
   )
 }

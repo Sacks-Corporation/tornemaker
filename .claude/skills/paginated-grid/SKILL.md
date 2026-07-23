@@ -120,35 +120,48 @@ ISO string vía JSON). Reutilizá `PaginatedResponse<XListItem>` de
 
 ### 2. `api/<grupo>.api.ts`
 
-`getX(page, pageSize): Promise<PaginatedResponse<XListItem>>` vía
-`axiosInstance`, con `page`/`pageSize` como query params. Tipado completo,
-sin `any`. Los componentes nunca llaman a esta función directo: pasa siempre
-por el hook del paso 3.
+`getX(page, pageSize, sortField, sortDirection):
+Promise<PaginatedResponse<XListItem>>` vía `axiosInstance`, con
+`page`/`pageSize`/`sortField`/`sortDirection` como query params. `sortField`/
+`sortDirection` (tipo `SortDirection` de `types/common.types.ts`) son
+**OBLIGATORIOS**: la API los exige (400 si faltan), así que siempre se manda un
+orden (el container arranca con un default — ver paso 4). Tipado completo, sin
+`any`. Los componentes nunca llaman a esta función directo: pasa siempre por el
+hook del paso 3.
 
 ```ts
 export const getX = (
   page: number,
   pageSize: number,
+  sortField: string,
+  sortDirection: SortDirection,
 ): Promise<PaginatedResponse<XListItem>> =>
   axiosInstance
-    .get<PaginatedResponse<XListItem>>('/x', { params: { page, pageSize } })
+    .get<PaginatedResponse<XListItem>>('/x', {
+      params: { page, pageSize, sortField, sortDirection },
+    })
     .then((response) => response.data)
 ```
 
 ### 3. `hooks/<grupo>/useGetX.ts`
 
-`useQuery` de TanStack Query: `queryKey: ['x', page, pageSize]` (page/pageSize
-en el key para que cada combinación tenga su propia entrada de cache),
-`enabled: pageSize !== undefined` (frena el fetch hasta que `useAutoPageSize`
-midió de verdad — ver punto 2) y `placeholderData: keepPreviousData` (para
-que cambiar de página no "parpadee" a vacío/skeleton mientras resuelve la
-próxima).
+`useQuery` de TanStack Query: `queryKey: ['x', page, pageSize, sortField,
+sortDirection]` (todos en el key para que cada combinación tenga su propia
+entrada de cache), `enabled: pageSize !== undefined` (frena el fetch hasta
+que `useAutoPageSize` midió de verdad — ver punto 2) y `placeholderData:
+keepPreviousData` (para que cambiar de página no "parpadee" a
+vacío/skeleton mientras resuelve la próxima).
 
 ```ts
-export function useGetX(page: number, pageSize: number | undefined) {
+export function useGetX(
+  page: number,
+  pageSize: number | undefined,
+  sortField: string,
+  sortDirection: SortDirection,
+) {
   return useQuery({
-    queryKey: ['x', page, pageSize],
-    queryFn: () => getX(page, pageSize as number),
+    queryKey: ['x', page, pageSize, sortField, sortDirection],
+    queryFn: () => getX(page, pageSize as number, sortField, sortDirection),
     enabled: pageSize !== undefined,
     placeholderData: keepPreviousData,
   })
@@ -160,24 +173,37 @@ export function useGetX(page: number, pageSize: number | undefined) {
 En el **container**:
 
 - `page` como estado propio (`useState(1)`), controlado por el container.
+- `sortField`/`sortDirection` como estado propio también, pero **OBLIGATORIOS**:
+  arrancan con un orden por defecto que siempre se manda (la API los exige), ej.
+  `useState<string>('createdAt')` / `useState<SortDirection>('desc')` (más
+  recientes primero). El `sortField` por defecto debe estar en el whitelist de
+  campos ordenables del endpoint. Un `handleSortChange(field, direction)` que
+  setea ambos y además **resetea `page` a 1**.
 - `tableContainerRef` (`useRef<HTMLDivElement>`) + `pageSize =
   useAutoPageSize({ containerRef: tableContainerRef })`.
-- Un `useXTableData` "puente" que invoca `useGetX(page, pageSize)` y adapta
-  el resultado al contrato `DataTableDataResult<XListItem>` (`data`,
-  `isLoading`, `isError`, `total`) — se redefine en cada render para cerrar
-  sobre `page`/`pageSize` actuales; `DataTable` lo invoca incondicionalmente.
-  Forzá `isLoading: pageSize === undefined || isLoading` (del `useQuery`) para
-  que se siga viendo el skeleton mientras `useAutoPageSize` todavía no midió.
+- Un `useXTableData` "puente" que invoca `useGetX(page, pageSize, sortField,
+  sortDirection)` y adapta el resultado al contrato
+  `DataTableDataResult<XListItem>` (`data`, `isLoading`, `isError`, `total`) —
+  se redefine en cada render para cerrar sobre `page`/`pageSize`/`sortField`/
+  `sortDirection` actuales; `DataTable` lo invoca incondicionalmente. Forzá
+  `isLoading: pageSize === undefined || isLoading` (del `useQuery`) para que
+  se siga viendo el skeleton mientras `useAutoPageSize` todavía no midió.
 - `columns: DataTableColumn<XListItem>[]` con `header` resuelto vía
   `t('<grupo>.columns.…')` (la página resuelve i18n, nunca el `DataTable`).
+  `sortable: true` SOLO en las columnas cuyo `id` esté en el whitelist de
+  campos ordenables del endpoint (ver sección de "Columnas ordenables" más
+  arriba); si un campo no es ordenable en el backend (ej. un estado
+  efectivo/computado), `sortable: false` explícito.
 - Fechas: usá los helpers existentes de `utils/date.utils.ts` (ej.
   `formatDateTime`) en el `render` de la columna, nunca formateo manual.
 - Enums del backend (ej. estado): mapealos a labels vía i18n
   (`t('<grupo>.estados.<VALOR>')`), igual que `UserStateBadge` en
   `UsersPage.tsx` para `state`/`provider`.
 - Renderizá `<DataTable useData={useXTableData} columns={columns}
-  pageSize={pageSize} page={page} onPageChange={setPage} getRowId={(row) =>
-  row.id} />` dentro del `div` referenciado por `tableContainerRef`.
+  pageSize={pageSize} page={page} onPageChange={setPage} sortField={sortField}
+  sortDirection={sortDirection} onSortChange={handleSortChange}
+  getRowId={(row) => row.id} />` dentro del `div` referenciado por
+  `tableContainerRef`.
 
 En el **presentacional**: solo recibe `title`, `subtitle`,
 `tableContainerRef` y `table` (el `DataTable` ya armado, como componente
@@ -204,9 +230,14 @@ aplica, los mapeos de enums (ej. `estados.*`, `tipos.*`). Registralo en
 
 1. Build/lint del proyecto en verde (`npm run build` / `npm run lint` en
    `backoffice/`).
-2. En el navegador, confirmar los tres puntos del patrón server-side:
+2. En el navegador, confirmar los puntos del patrón server-side:
    - La grilla trae **solo** la página pedida (no todo el listado completo).
    - El `pageSize` se adapta al alto disponible del viewport (probar
      achicando/agrandando la ventana).
    - Cambiar de página dispara un fetch nuevo al backend (Network tab: un
      request por cambio de página, con `page`/`pageSize` actualizados).
+   - Clickear un header `sortable` dispara un fetch con `sortField`/
+     `sortDirection` en la request (Network tab), el orden cambia en TODAS
+     las páginas (no solo en la actual), clickear de nuevo la misma columna
+     alterna `asc`/`desc`, clickear otra columna resetea a página 1, y el
+     indicador (flecha) de la columna activa se ve correctamente.

@@ -8,7 +8,7 @@ const tournaments = {
     consoleCount: 'Consolas',
     status: 'Estado',
     state: 'Etapa',
-    createdAt: 'Creación',
+    createdAt: 'Fecha de creación',
     updatedAt: 'Fecha de actualización',
   },
   formats: {

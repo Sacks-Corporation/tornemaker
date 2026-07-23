@@ -12,6 +12,7 @@ import type {
   DataTableAction,
   DataTableAlign,
   DataTableColumn,
+  SortDirection,
 } from '../../../types/common.types'
 
 export interface DataTableLabels {
@@ -51,13 +52,32 @@ export interface DataTableViewProps<T> {
    * backend), a diferencia del `pageIndex` (0-indexed) interno de
    * `@tanstack/react-table`.
    *
-   * Nota: el sorting cross-page NO está soportado en este modo — el usuario
-   * puede ordenar, pero solo reordena las filas de la página actual (no hay
-   * sorting server-side todavía; queda como trabajo futuro).
+   * El sorting en este modo es responsabilidad del padre: ver
+   * `sortField`/`sortDirection`/`onSortChange`.
    */
   page?: number
   total?: number
   onPageChange?: (page: number) => void
+  /**
+   * Sorting controlado server-side (solo tiene sentido junto al modo
+   * server-side de paginación de arriba). Al pasar `onSortChange`, el
+   * sorting deja de resolverse en memoria: se activa `manualSorting: true`
+   * (react-table asume que `rows` ya viene ordenado por el backend y no lo
+   * reordena) y el click en un header `sortable` dispara `onSortChange` en
+   * vez de tocar estado interno.
+   *
+   * `sortField` es el `id` de la columna activa (o `undefined` si todavía no
+   * se aplicó ningún sort — la API usa su orden por defecto) y
+   * `sortDirection` su dirección. Toggle: click en una columna distinta a la
+   * activa → `onSortChange(col.id, 'asc')`; click en la columna ya activa →
+   * alterna `asc` ↔ `desc` (nunca vuelve a "sin sort").
+   *
+   * Sin `onSortChange`, se mantiene el sorting en memoria de siempre (modo
+   * client-side, o server-side solo de paginación).
+   */
+  sortField?: string
+  sortDirection?: SortDirection
+  onSortChange?: (field: string, direction: SortDirection) => void
 }
 
 const alignClasses: Record<DataTableAlign, string> = {
@@ -139,6 +159,9 @@ function DataTable<T>({
   page,
   total,
   onPageChange,
+  sortField,
+  sortDirection,
+  onSortChange,
 }: DataTableViewProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
 
@@ -146,6 +169,26 @@ function DataTable<T>({
   // (props de control), NO `total`: `total` es un dato async que llega undefined
   // durante la carga inicial, así que no puede decidir el modo sin crashear.
   const isServerPaginated = page !== undefined && onPageChange !== undefined
+  // El sorting server-side lo define el padre al pasar `onSortChange`. `rows`
+  // ya viene ordenado por el backend, así que no hay que reordenarlo acá.
+  const isServerSorted = onSortChange !== undefined
+
+  // Estado de sorting controlado: reconstruido a partir de `sortField`/
+  // `sortDirection` (nunca del estado interno `sorting`) para que el
+  // indicador de la columna activa refleje siempre lo que decide el padre.
+  const controlledSorting = useMemo<SortingState>(
+    () => (sortField ? [{ id: sortField, desc: sortDirection === 'desc' }] : []),
+    [sortField, sortDirection],
+  )
+
+  const handleServerSort = (columnId: string) => {
+    if (!onSortChange) return
+    if (sortField === columnId) {
+      onSortChange(columnId, sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      onSortChange(columnId, 'asc')
+    }
+  }
 
   const alignByColumnId = useMemo(() => {
     const map = new Map<string, DataTableAlign>()
@@ -210,7 +253,10 @@ function DataTable<T>({
     data: rows,
     columns: columnDefs,
     state: {
-      sorting,
+      // En modo sort server-side, `sorting` es 100% controlado por
+      // `sortField`/`sortDirection` (nunca por el estado interno `sorting`,
+      // que solo se usa en modo client-side).
+      sorting: isServerSorted ? controlledSorting : sorting,
       // En modo server-side la paginación es controlada: la fuente de verdad es
       // la prop `page` (del padre), no el estado interno de la tabla. En modo
       // client-side NO incluimos `pagination` en `state` (pasar `undefined`
@@ -219,10 +265,18 @@ function DataTable<T>({
         ? { pagination: { pageIndex: page - 1, pageSize } }
         : {}),
     },
-    onSortingChange: setSorting,
+    // En modo sort server-side el click en el header no pasa por acá (ver
+    // `handleServerSort`, usado directo en el `onClick` del header más abajo):
+    // este handler queda de no-op para no pisar el estado controlado.
+    onSortingChange: isServerSorted ? () => {} : setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    // `manualSorting: true` le indica a react-table que `rows` YA viene
+    // ordenado por el backend: `getSortedRowModel` deja de reordenar en
+    // memoria y devuelve las filas tal cual llegaron (ver
+    // `RowSorting.js`/`_getSortedRowModel` de `@tanstack/table-core`).
+    manualSorting: isServerSorted,
     manualPagination: isServerPaginated,
     pageCount: isServerPaginated
       ? Math.max(1, Math.ceil((total ?? 0) / pageSize))
@@ -277,15 +331,18 @@ function DataTable<T>({
               <tr key={headerGroup.id} className="border-b border-border">
                 {headerGroup.headers.map((header) => {
                   const align = alignByColumnId.get(header.column.id) ?? 'left'
-                  const sortDirection = header.column.getIsSorted()
+                  // Refleja `header.column.getIsSorted()`, que en modo server
+                  // sort ya está resuelto por `controlledSorting` (viene de
+                  // `sortField`/`sortDirection`, no de estado interno).
+                  const columnSortDirection = header.column.getIsSorted()
                   return (
                     <th
                       key={header.id}
                       scope="col"
                       aria-sort={
-                        sortDirection === 'asc'
+                        columnSortDirection === 'asc'
                           ? 'ascending'
-                          : sortDirection === 'desc'
+                          : columnSortDirection === 'desc'
                             ? 'descending'
                             : undefined
                       }
@@ -297,11 +354,15 @@ function DataTable<T>({
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
                           type="button"
-                          onClick={header.column.getToggleSortingHandler()}
+                          onClick={
+                            isServerSorted
+                              ? () => handleServerSort(header.column.id)
+                              : header.column.getToggleSortingHandler()
+                          }
                           className="inline-flex items-center gap-1 uppercase tracking-wide transition-colors duration-150 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          <SortIcon direction={sortDirection} />
+                          <SortIcon direction={columnSortDirection} />
                         </button>
                       ) : (
                         flexRender(header.column.columnDef.header, header.getContext())
