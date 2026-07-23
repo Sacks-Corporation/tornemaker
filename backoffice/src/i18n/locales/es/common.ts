@@ -4,6 +4,7 @@ const common = {
   sidebar: {
     navLabel: 'Navegación principal',
     dashboard: 'Dashboard',
+    users: 'Usuarios',
     toggleThemeToLight: 'Cambiar a modo claro',
     toggleThemeToDark: 'Cambiar a modo oscuro',
     logout: 'Cerrar sesión',
@@ -19,6 +20,7 @@ const common = {
     previousPage: 'Página anterior',
     nextPage: 'Página siguiente',
     pageOf: 'Página {{page}} de {{total}}',
+    total: '{{count}} resultados',
     sortBy: 'Ordenar por {{column}}',
   },
   modal: {

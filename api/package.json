@@ -19,6 +19,7 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migrate:team-count-dynamic": "ts-node src/migrations/2026-07-team-count-dynamic.migration.ts",
+    "migrate:user-state-last-signed-in": "ts-node src/migrations/2026-07-user-state-last-signed-in.migration.ts",
     "seed:admin": "ts-node src/migrations/2026-07-seed-initial-admin.migration.ts"
   },
   "dependencies": {

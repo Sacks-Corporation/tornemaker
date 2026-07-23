@@ -68,6 +68,8 @@ export class AuthService {
       throw new UnauthorizedException('INVALID_CREDENTIALS');
     }
 
+    await this.usersService.touchLastSignedIn(this.toId(user));
+
     return { accessToken: this.signJwt(user), user: toUserResponse(user) };
   }
 
@@ -87,6 +89,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('USER_NOT_REGISTERED');
     }
+
+    await this.usersService.touchLastSignedIn(this.toId(user));
 
     return { accessToken: this.signJwt(user), user: toUserResponse(user) };
   }
@@ -110,6 +114,14 @@ export class AuthService {
     const googleUser = await this.verifyGoogleToken(idToken);
 
     const user = await this.usersService.findOrCreateFromGoogle(googleUser);
+
+    // Also covers the "re-login" case described above: when the identity
+    // already existed, this records the new sign-in. For a brand-new user
+    // `lastSignedIn` was just set to `createdAt` inside
+    // `findOrCreateFromGoogle` a moment ago, so this simply nudges it a few
+    // milliseconds forward — harmless, and keeps this call unconditional
+    // instead of duplicating the existing-vs-new lookup already done there.
+    await this.usersService.touchLastSignedIn(this.toId(user));
 
     return { accessToken: this.signJwt(user), user: toUserResponse(user) };
   }

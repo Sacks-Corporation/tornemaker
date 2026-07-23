@@ -22,6 +22,10 @@ export interface DataTableLabels {
   previousPage: string
   nextPage: string
   pageOf: (page: number, total: number) => string
+  /** Total de filas disponibles (ej. "16 resultados"). Se usa en modo
+   * server-side, donde el footer siempre muestra el total, haya una o
+   * varias páginas. */
+  total: (total: number) => string
 }
 
 export interface DataTableViewProps<T> {
@@ -31,9 +35,29 @@ export interface DataTableViewProps<T> {
   isLoading: boolean
   isError: boolean
   labels: DataTableLabels
-  /** Filas por página (default 10). */
+  /** Filas por página (default 10). En modo server-side es la cantidad de
+   * filas que trae cada página (ver `page`/`total`/`onPageChange`). */
   pageSize?: number
   getRowId?: (row: T, index: number) => string
+  /**
+   * Modo de paginado "manual"/server-side: `rows` ya es la página actual
+   * (la trajo así el backend), no la lista completa. Al pasar `page` +
+   * `total` + `onPageChange`, la tabla deja de paginar en memoria
+   * (`manualPagination: true` + `pageCount` derivado de `total`/`pageSize`)
+   * y delega la navegación al padre. Si falta alguna de las tres, se usa el
+   * modo client-side de siempre (paginación en memoria sobre `rows`).
+   *
+   * `page` es 1-indexed (coincide con el contrato `PaginatedResponse` del
+   * backend), a diferencia del `pageIndex` (0-indexed) interno de
+   * `@tanstack/react-table`.
+   *
+   * Nota: el sorting cross-page NO está soportado en este modo — el usuario
+   * puede ordenar, pero solo reordena las filas de la página actual (no hay
+   * sorting server-side todavía; queda como trabajo futuro).
+   */
+  page?: number
+  total?: number
+  onPageChange?: (page: number) => void
 }
 
 const alignClasses: Record<DataTableAlign, string> = {
@@ -112,8 +136,16 @@ function DataTable<T>({
   labels,
   pageSize = 10,
   getRowId,
+  page,
+  total,
+  onPageChange,
 }: DataTableViewProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
+
+  // El modo server-side lo define el padre al pasar `page` + `onPageChange`
+  // (props de control), NO `total`: `total` es un dato async que llega undefined
+  // durante la carga inicial, así que no puede decidir el modo sin crashear.
+  const isServerPaginated = page !== undefined && onPageChange !== undefined
 
   const alignByColumnId = useMemo(() => {
     const map = new Map<string, DataTableAlign>()
@@ -177,19 +209,60 @@ function DataTable<T>({
   const table = useReactTable({
     data: rows,
     columns: columnDefs,
-    state: { sorting },
+    state: {
+      sorting,
+      // En modo server-side la paginación es controlada: la fuente de verdad es
+      // la prop `page` (del padre), no el estado interno de la tabla. En modo
+      // client-side NO incluimos `pagination` en `state` (pasar `undefined`
+      // rompe el estado que viene de `initialState`).
+      ...(isServerPaginated
+        ? { pagination: { pageIndex: page - 1, pageSize } }
+        : {}),
+    },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize } },
+    manualPagination: isServerPaginated,
+    pageCount: isServerPaginated
+      ? Math.max(1, Math.ceil((total ?? 0) / pageSize))
+      : undefined,
+    initialState: isServerPaginated ? undefined : { pagination: { pageSize } },
     getRowId,
   })
 
   const visibleColumnCount = table.getVisibleLeafColumns().length
-  const { pageIndex } = table.getState().pagination
-  const pageCount = table.getPageCount()
+  const pageIndex = isServerPaginated ? page - 1 : table.getState().pagination.pageIndex
+  const pageCount = isServerPaginated
+    ? Math.max(1, Math.ceil((total ?? 0) / pageSize))
+    : table.getPageCount()
   const isEmpty = !isLoading && !isError && rows.length === 0
+
+  const goToPreviousPage = () => {
+    if (isServerPaginated) {
+      onPageChange(page - 1)
+      return
+    }
+    table.previousPage()
+  }
+
+  const goToNextPage = () => {
+    if (isServerPaginated) {
+      onPageChange(page + 1)
+      return
+    }
+    table.nextPage()
+  }
+
+  const canGoToPreviousPage = isServerPaginated ? page > 1 : table.getCanPreviousPage()
+  const canGoToNextPage = isServerPaginated ? page < pageCount : table.getCanNextPage()
+
+  // En modo server-side el footer (con el total) se muestra SIEMPRE que ya se
+  // conozca `total` (aunque entre todo en una sola página) — es la única
+  // forma de comunicar cuántos resultados hay en total, dado que `rows` es
+  // solo la página actual. En modo client-side se mantiene el comportamiento
+  // de siempre (solo con más de una página).
+  const showFooter = isServerPaginated ? total !== undefined : pageCount > 1
 
   return (
     <div
@@ -297,25 +370,29 @@ function DataTable<T>({
         </table>
       </div>
 
-      {pageCount > 1 && (
+      {showFooter && (
         <div className="flex items-center justify-between gap-4 border-t border-border px-4 py-2">
           <span className="text-xs text-text-muted">
-            {labels.pageOf(pageIndex + 1, pageCount)}
+            {isServerPaginated
+              ? `${labels.pageOf(pageIndex + 1, pageCount)} · ${labels.total(total ?? 0)}`
+              : labels.pageOf(pageIndex + 1, pageCount)}
           </span>
-          <div className="flex items-center gap-1">
-            <PageButton
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              label={labels.previousPage}
-              direction="prev"
-            />
-            <PageButton
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              label={labels.nextPage}
-              direction="next"
-            />
-          </div>
+          {pageCount > 1 && (
+            <div className="flex items-center gap-1">
+              <PageButton
+                onClick={goToPreviousPage}
+                disabled={!canGoToPreviousPage}
+                label={labels.previousPage}
+                direction="prev"
+              />
+              <PageButton
+                onClick={goToNextPage}
+                disabled={!canGoToNextPage}
+                label={labels.nextPage}
+                direction="next"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

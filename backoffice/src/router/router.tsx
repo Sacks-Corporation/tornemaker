@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import SidebarLayout from '../components/common/SidebarLayout'
 import ProtectedRoute from '../components/common/ProtectedRoute'
 import DashboardPage from '../components/pages/DashboardPage'
+import UsersPage from '../components/pages/UsersPage'
 import LoginPage from '../components/pages/LoginPage'
 
 // /login es pública y no lleva SidebarLayout. Todo lo demás cuelga de
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: 'users',
+        element: <UsersPage />,
       },
     ],
   },

@@ -2,9 +2,22 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
 import { Model } from 'mongoose';
+import {
+  buildPaginatedResult,
+  getPaginationSkip,
+  PaginatedResult,
+  PaginationQueryDto,
+} from '../common/pagination';
 import { User, UserDocument } from './schemas/user.schema';
+import { toUserListItem, UserListItem } from './user-list-item';
 
 const SALT_ROUNDS = 10;
+
+/** Fields projected for `GET /users` — see `findAllPaginated`. Deliberately
+ *  excludes `password` and `googleId`; never widen this without checking
+ *  `UserListItem`/`toUserListItem` stay in sync. */
+const LIST_PROJECTION =
+  'firstName lastName email updatedAt lastSignedIn state provider';
 
 export interface GoogleUserPayload {
   googleId: string;
@@ -63,6 +76,7 @@ export class UsersService {
     }
 
     const passwordHash = await bcrypt.hash(payload.password, SALT_ROUNDS);
+    const now = new Date();
 
     try {
       const created = new this.userModel({
@@ -71,6 +85,7 @@ export class UsersService {
         email: payload.email,
         password: passwordHash,
         provider: 'local',
+        lastSignedIn: now,
       });
       return await created.save();
     } catch (error) {
@@ -135,6 +150,7 @@ export class UsersService {
         lastName: payload.lastName,
         picture: payload.picture,
         provider: 'google',
+        lastSignedIn: new Date(),
       });
       return await created.save();
     } catch (error) {
@@ -143,6 +159,54 @@ export class UsersService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Records a successful sign-in by setting `lastSignedIn` to now. Called
+   * after every successful local login, Google login, and Google register
+   * that signs an already-existing user in (see `AuthService`) — never for
+   * backoffice admin logins, which don't go through this collection.
+   *
+   * Uses `{ timestamps: false }` so this update does NOT bump `updatedAt`:
+   * for now `updatedAt` must stay equal to `createdAt` (there is no profile
+   * editing yet), and a plain `updateOne` would otherwise touch it on every
+   * single login since the schema has `{ timestamps: true }`.
+   */
+  async touchLastSignedIn(userId: string): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { lastSignedIn: new Date() } },
+      { timestamps: false },
+    );
+  }
+
+  /**
+   * GET /users (backoffice listing) — paginated, most recently created
+   * first. Only projects the fields `UserListItem` needs (see
+   * `LIST_PROJECTION`); `password`/`googleId` never leave this method. Each
+   * item's `state` is the EFFECTIVE state, computed fresh on every call by
+   * `toUserListItem` — never trusted straight from the stored document. See
+   * `.claude/skills/paginated-endpoint/SKILL.md` for the shared pagination
+   * contract (`buildPaginatedResult`/`getPaginationSkip`).
+   */
+  async findAllPaginated(
+    query: PaginationQueryDto,
+  ): Promise<PaginatedResult<UserListItem>> {
+    const { page, pageSize } = query;
+
+    const [docs, total] = await Promise.all([
+      this.userModel
+        .find()
+        .select(LIST_PROJECTION)
+        .sort({ createdAt: -1 })
+        .skip(getPaginationSkip(page, pageSize))
+        .limit(pageSize)
+        .exec(),
+      this.userModel.countDocuments().exec(),
+    ]);
+
+    const data = docs.map(toUserListItem);
+    return buildPaginatedResult(data, total, page, pageSize);
   }
 
   /** Detects MongoDB's duplicate key error (E11000). */

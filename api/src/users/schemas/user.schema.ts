@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { UserState } from './user-state.enum';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -45,6 +46,25 @@ export class User {
 
   @Prop()
   picture?: string;
+
+  /**
+   * Coarse-grained account state — see `user-state.enum.ts`. Only `ACTIVE`
+   * is set today (default, at creation); `BLOCKED` is reserved for a future
+   * moderation feature and `INACTIVE` is derived at read time from
+   * `lastSignedIn` rather than persisted.
+   */
+  @Prop({ type: String, enum: UserState, default: UserState.ACTIVE })
+  state: UserState;
+
+  /**
+   * Timestamp of the user's last successful sign-in (local login, Google
+   * login, or Google register when it signs an already-existing user in).
+   * Set to `createdAt` at creation time and updated on every successful
+   * sign-in via `UsersService.touchLastSignedIn` — WITHOUT touching
+   * `updatedAt` (see that method for why).
+   */
+  @Prop()
+  lastSignedIn: Date;
 
   // createdAt and updatedAt are injected automatically by { timestamps: true }
 }

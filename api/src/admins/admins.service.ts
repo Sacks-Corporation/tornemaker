@@ -20,4 +20,13 @@ export class AdminsService {
       .select('+password')
       .exec();
   }
+
+  /**
+   * Finds an admin by id (never includes the password hash, same default
+   * projection as `Admin.password`'s `select: false`). Used by `JwtStrategy`
+   * to resolve the `sub` of a backoffice admin token (`role: 'admin'`).
+   */
+  async findById(id: string): Promise<AdminDocument | null> {
+    return this.adminModel.findById(id).exec();
+  }
 }

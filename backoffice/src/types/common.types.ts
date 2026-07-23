@@ -60,4 +60,12 @@ export interface DataTableDataResult<T> {
   data: T[] | undefined
   isLoading: boolean
   isError: boolean
+  /**
+   * Total de filas del recurso completo (todas las páginas), no solo las de
+   * `data`. Solo lo necesita el modo de paginado server-side (ver props
+   * `page`/`onPageChange` de `DataTable`): con ese modo activo, `DataTable`
+   * usa este valor para calcular `pageCount`. En modo client-side (default)
+   * se ignora.
+   */
+  total?: number
 }
