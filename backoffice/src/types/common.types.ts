@@ -51,11 +51,13 @@ export type DataTableActionVariant = 'default' | 'danger'
 // Acción de la última columna (ícono clickeable por fila)
 export interface DataTableAction<T> {
   id: string
-  /** Label ya traducido: se usa como aria-label/title del ícono. */
-  label: string
-  icon: ReactNode
+  /** Label ya traducido: se usa como aria-label/title del ícono. Acepta un
+   * valor fijo o una función de la fila, para acciones cuyo texto depende de
+   * su estado (ej. "Habilitar"/"Deshabilitar" según `row.enabled`). */
+  label: string | ((row: T) => string)
+  icon: ReactNode | ((row: T) => ReactNode)
   onClick: (row: T) => void
-  variant?: DataTableActionVariant
+  variant?: DataTableActionVariant | ((row: T) => DataTableActionVariant)
   disabled?: (row: T) => boolean
 }
 

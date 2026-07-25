@@ -18,4 +18,12 @@ export interface UserListItem {
   lastSignedIn: string
   state: UserState
   provider: UserProvider
+  /** Flag persistido (distinto de `state`, que es el estado EFECTIVO
+   * calculado por el backend): habilita/deshabilita el acceso del usuario.
+   * Lo togglean `PATCH /users/:id/enable` y `PATCH /users/:id/disable`. */
+  enabled: boolean
 }
+
+// Acción disponible para togglear `enabled` desde la grilla: "enable" cuando
+// el usuario está deshabilitado, "disable" cuando está habilitado.
+export type UserEnablementAction = 'enable' | 'disable'

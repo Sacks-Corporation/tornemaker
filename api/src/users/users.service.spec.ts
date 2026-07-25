@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { PaginationQueryDto, SortDirection } from '../common/pagination';
 import { UserDocument } from './schemas/user.schema';
@@ -40,6 +41,7 @@ function fakeUserDoc(overrides: Partial<UserDocument> = {}): UserDocument {
     email: 'ada@example.com',
     provider: 'local',
     state: UserState.ACTIVE,
+    enabled: true,
     lastSignedIn: new Date('2026-07-20T00:00:00.000Z'),
     updatedAt: new Date('2026-07-21T00:00:00.000Z'),
     ...overrides,
@@ -128,7 +130,7 @@ describe('UsersService.findAllPaginated', () => {
           pageSize: 20,
           sortField,
           sortDirection: SortDirection.ASC,
-        } as PaginationQueryDto);
+        });
 
         expect(findChain.sort).toHaveBeenCalledWith(dbSort);
       },
@@ -149,7 +151,7 @@ describe('UsersService.findAllPaginated', () => {
           pageSize: 20,
           sortField,
           sortDirection: SortDirection.DESC,
-        } as PaginationQueryDto);
+        });
 
         expect(findChain.sort).toHaveBeenCalledWith(descSort);
       },
@@ -186,7 +188,7 @@ describe('UsersService.findAllPaginated', () => {
     const inactiveDoc = fakeUserDoc({
       lastSignedIn: new Date('2000-01-01T00:00:00.000Z'),
       password: 'super-secret-hash',
-    } as Partial<UserDocument>);
+    });
     const { model } = makeModel([inactiveDoc], 1);
     const service = new UsersService(model);
 
@@ -197,5 +199,82 @@ describe('UsersService.findAllPaginated', () => {
 
     expect(result.data[0]).not.toHaveProperty('password');
     expect(result.data[0].state).toBe(UserState.INACTIVE);
+  });
+});
+
+describe('UsersService.enableUser / disableUser', () => {
+  function makeModelForUpdate(result: UserDocument | null) {
+    const exec = jest.fn().mockResolvedValue(result);
+    const findByIdAndUpdate = jest.fn().mockReturnValue({ exec });
+    const model = { findByIdAndUpdate } as unknown as Model<UserDocument>;
+    return { model, findByIdAndUpdate };
+  }
+
+  it('enableUser sets enabled: true and state: ACTIVE, and returns the mapped UserListItem', async () => {
+    const doc = fakeUserDoc({ enabled: true, state: UserState.ACTIVE });
+    const { model, findByIdAndUpdate } = makeModelForUpdate(doc);
+    const service = new UsersService(model);
+
+    const id = doc._id.toString();
+    const result = await service.enableUser(id);
+
+    expect(findByIdAndUpdate).toHaveBeenCalledWith(
+      id,
+      { $set: { enabled: true, state: UserState.ACTIVE } },
+      { new: true },
+    );
+    expect(result.enabled).toBe(true);
+    expect(result.state).toBe(UserState.ACTIVE);
+    expect(result.id).toBe(id);
+  });
+
+  it('disableUser sets enabled: false and state: BLOCKED, and returns the mapped UserListItem', async () => {
+    const doc = fakeUserDoc({ enabled: false, state: UserState.BLOCKED });
+    const { model, findByIdAndUpdate } = makeModelForUpdate(doc);
+    const service = new UsersService(model);
+
+    const id = doc._id.toString();
+    const result = await service.disableUser(id);
+
+    expect(findByIdAndUpdate).toHaveBeenCalledWith(
+      id,
+      { $set: { enabled: false, state: UserState.BLOCKED } },
+      { new: true },
+    );
+    expect(result.enabled).toBe(false);
+    expect(result.state).toBe(UserState.BLOCKED);
+  });
+
+  it('enableUser resets a previously BLOCKED user back to ACTIVE (symmetry with disableUser, since computeEffectiveUserState always lets a persisted BLOCKED win)', async () => {
+    const doc = fakeUserDoc({ enabled: true, state: UserState.ACTIVE });
+    const { model, findByIdAndUpdate } = makeModelForUpdate(doc);
+    const service = new UsersService(model);
+
+    await service.enableUser(doc._id.toString());
+
+    expect(findByIdAndUpdate).toHaveBeenCalledWith(
+      doc._id.toString(),
+      { $set: { enabled: true, state: UserState.ACTIVE } },
+      { new: true },
+    );
+  });
+
+  it('throws NotFoundException when no user matches the id', async () => {
+    const { model } = makeModelForUpdate(null);
+    const service = new UsersService(model);
+
+    await expect(
+      service.enableUser(new Types.ObjectId().toString()),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('throws NotFoundException without querying Mongo when the id is not a valid ObjectId', async () => {
+    const { model, findByIdAndUpdate } = makeModelForUpdate(null);
+    const service = new UsersService(model);
+
+    await expect(service.disableUser('not-an-object-id')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
   });
 });

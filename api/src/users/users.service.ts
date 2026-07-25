@@ -1,7 +1,11 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcrypt';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import {
   buildPaginatedResult,
   getPaginationSkip,
@@ -13,6 +17,7 @@ import {
   SortWhitelist,
 } from '../common/pagination';
 import { User, UserDocument } from './schemas/user.schema';
+import { UserState } from './schemas/user-state.enum';
 import { toUserListItem, UserListItem } from './user-list-item';
 
 const SALT_ROUNDS = 10;
@@ -21,7 +26,7 @@ const SALT_ROUNDS = 10;
  *  excludes `password` and `googleId`; never widen this without checking
  *  `UserListItem`/`toUserListItem` stay in sync. */
 const LIST_PROJECTION =
-  'firstName lastName email updatedAt lastSignedIn state provider';
+  'firstName lastName email updatedAt lastSignedIn state provider enabled';
 
 /**
  * Whitelist for `GET /users`'s `sortField` query param (fieldApi -> fieldDb,
@@ -245,6 +250,66 @@ export class UsersService {
 
     const data = docs.map(toUserListItem);
     return buildPaginatedResult(data, total, page, pageSize);
+  }
+
+  /**
+   * PATCH /users/:id/enable (backoffice) — re-allows this account to sign
+   * in by setting `enabled: true` AND resetting the persisted `state` back
+   * to `ACTIVE`. The `state` reset is required for symmetry with
+   * `disableUser`: `computeEffectiveUserState` always lets a persisted
+   * `BLOCKED` win over everything else, so a re-enabled user whose `state`
+   * stayed `BLOCKED` would keep showing as BLOCKED forever. See `setEnabled`
+   * for the shared lookup/update logic; returns the updated row in the same
+   * `UserListItem` shape as `GET /users`, so the backoffice can patch its
+   * table in place without a full refetch.
+   */
+  async enableUser(id: string): Promise<UserListItem> {
+    return this.setEnabled(id, true);
+  }
+
+  /**
+   * PATCH /users/:id/disable (backoffice) — blocks this account from
+   * signing in by setting `enabled: false` AND persisting `state:
+   * UserState.BLOCKED` (see `UserState`/`computeEffectiveUserState`, which
+   * always lets a persisted `BLOCKED` win regardless of `lastSignedIn`).
+   * Enforced at login time by `AuthService.login` / `loginWithGoogle` /
+   * `registerWithGoogle` (`UnauthorizedException('USER_DISABLED')`); does
+   * NOT invalidate any JWT already issued (this project has no token
+   * revocation/blocklist) — the user is only blocked from starting a NEW
+   * session. See `setEnabled` for the shared lookup/update logic.
+   */
+  async disableUser(id: string): Promise<UserListItem> {
+    return this.setEnabled(id, false);
+  }
+
+  /**
+   * Shared implementation behind `enableUser`/`disableUser`: validates the
+   * id is a well-formed ObjectId (same defensive check as
+   * `TournamentsService.findOwnedTournamentOrThrow` — an invalid id can
+   * never match a document, so it 404s before hitting Mongo) and 404s when
+   * no user matches. Besides toggling `enabled`, this keeps the persisted
+   * `state` in sync: `enabled: false` -> `state: BLOCKED`, `enabled: true`
+   * -> `state: ACTIVE` (see `enableUser`/`disableUser` for why). `{ new:
+   * true }` returns the document AFTER the update, mapped through
+   * `toUserListItem` for the same public shape `GET /users` returns.
+   */
+  private async setEnabled(
+    id: string,
+    enabled: boolean,
+  ): Promise<UserListItem> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+
+    const state = enabled ? UserState.ACTIVE : UserState.BLOCKED;
+    const user = await this.userModel
+      .findByIdAndUpdate(id, { $set: { enabled, state } }, { new: true })
+      .exec();
+    if (!user) {
+      throw new NotFoundException(`User ${id} not found`);
+    }
+
+    return toUserListItem(user);
   }
 
   /** Detects MongoDB's duplicate key error (E11000). */

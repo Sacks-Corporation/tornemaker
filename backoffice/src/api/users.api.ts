@@ -21,3 +21,15 @@ export const getUsers = (
       params: { page, pageSize, sortField, sortDirection },
     })
     .then((response) => response.data)
+
+// PATCH /users/:id/enable — habilita el acceso del usuario (enabled: true).
+// Admin-only, mismo esquema de auth que `getUsers`. Devuelve el usuario ya
+// actualizado.
+export const enableUser = (id: string): Promise<UserListItem> =>
+  axiosInstance.patch<UserListItem>(`/users/${id}/enable`).then((response) => response.data)
+
+// PATCH /users/:id/disable — deshabilita el acceso del usuario (enabled: false).
+// Admin-only, mismo esquema de auth que `getUsers`. Devuelve el usuario ya
+// actualizado.
+export const disableUser = (id: string): Promise<UserListItem> =>
+  axiosInstance.patch<UserListItem>(`/users/${id}/disable`).then((response) => response.data)

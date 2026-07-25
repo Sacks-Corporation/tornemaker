@@ -8,6 +8,7 @@ const KNOWN_MESSAGE_KEYS: Record<string, string> = {
   USE_GOOGLE_LOGIN: 'auth.errors.useGoogleLogin',
   EMAIL_ALREADY_REGISTERED: 'auth.errors.emailAlreadyRegistered',
   USER_NOT_REGISTERED: 'auth.errors.userNotRegistered',
+  USER_DISABLED: 'auth.errors.userDisabled',
 }
 
 // Traduce un error de axios proveniente de la API a una clave i18n lista para

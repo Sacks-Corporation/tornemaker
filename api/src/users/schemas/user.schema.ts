@@ -48,13 +48,31 @@ export class User {
   picture?: string;
 
   /**
-   * Coarse-grained account state — see `user-state.enum.ts`. Only `ACTIVE`
-   * is set today (default, at creation); `BLOCKED` is reserved for a future
-   * moderation feature and `INACTIVE` is derived at read time from
-   * `lastSignedIn` rather than persisted.
+   * Coarse-grained account state — see `user-state.enum.ts`. `ACTIVE` is the
+   * default at creation time. `BLOCKED` is persisted explicitly by
+   * `UsersService.disableUser` (and reset back to `ACTIVE` by `enableUser`)
+   * as a backoffice moderation action — see `setEnabled`. `INACTIVE` is
+   * never persisted; it's derived at read time from `lastSignedIn`
+   * (`computeEffectiveUserState`).
    */
   @Prop({ type: String, enum: UserState, default: UserState.ACTIVE })
   state: UserState;
+
+  /**
+   * Whether this account is allowed to sign in. Defaults to `true` for every
+   * account (local or Google) at creation time — `UsersService.createLocalUser`
+   * / `findOrCreateFromGoogle` deliberately rely on this schema default
+   * instead of setting it explicitly, same convention already used for
+   * `state`. Toggled by a backoffice admin via `PATCH /users/:id/enable` /
+   * `PATCH /users/:id/disable` (see `UsersService.enableUser` / `disableUser`).
+   * Enforced at LOGIN time only — `AuthService.login` / `loginWithGoogle` /
+   * `registerWithGoogle` reject with `UnauthorizedException('USER_DISABLED')`
+   * when `false`. Never checked for the backoffice admin login
+   * (`AuthService.loginBackoffice`), which is a completely separate
+   * collection/flow (`admins`, not `users`).
+   */
+  @Prop({ type: Boolean, default: true })
+  enabled: boolean;
 
   /**
    * Timestamp of the user's last successful sign-in (local login, Google

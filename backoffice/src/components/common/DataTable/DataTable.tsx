@@ -89,6 +89,12 @@ const alignClasses: Record<DataTableAlign, string> = {
 // Id reservado para la columna de acciones que se agrega al final.
 const ACTIONS_COLUMN_ID = '__actions'
 
+// Resuelve un valor de `DataTableAction` que puede ser fijo o depender de la
+// fila (ej. label/icon/variant que cambian según `row.enabled`).
+function resolveActionValue<T, V>(value: V | ((row: T) => V), row: T): V {
+  return typeof value === 'function' ? (value as (row: T) => V)(row) : value
+}
+
 const SKELETON_ROWS = 5
 
 function SortIcon({ direction }: { direction: false | 'asc' | 'desc' }) {
@@ -220,24 +226,27 @@ function DataTable<T>({
           <div className="flex items-center justify-end gap-1">
             {actionColumns.map((action) => {
               const isDisabled = action.disabled?.(row.original) ?? false
+              const label = resolveActionValue(action.label, row.original)
+              const icon = resolveActionValue(action.icon, row.original)
+              const variant = resolveActionValue(action.variant ?? 'default', row.original)
               return (
                 <button
                   key={action.id}
                   type="button"
-                  aria-label={action.label}
-                  title={action.label}
+                  aria-label={label}
+                  title={label}
                   disabled={isDisabled}
                   onClick={() => action.onClick(row.original)}
                   className={[
                     'flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                     'disabled:cursor-not-allowed disabled:opacity-40',
-                    action.variant === 'danger'
+                    variant === 'danger'
                       ? 'text-text-muted hover:bg-red-500/10 hover:text-red-600'
                       : 'text-text-muted hover:bg-primary/10 hover:text-primary',
                   ].join(' ')}
                 >
-                  {action.icon}
+                  {icon}
                 </button>
               )
             })}

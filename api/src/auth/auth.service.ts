@@ -68,6 +68,8 @@ export class AuthService {
       throw new UnauthorizedException('INVALID_CREDENTIALS');
     }
 
+    this.assertEnabled(user);
+
     await this.usersService.touchLastSignedIn(this.toId(user));
 
     return { accessToken: this.signJwt(user), user: toUserResponse(user) };
@@ -89,6 +91,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('USER_NOT_REGISTERED');
     }
+
+    this.assertEnabled(user);
 
     await this.usersService.touchLastSignedIn(this.toId(user));
 
@@ -114,6 +118,14 @@ export class AuthService {
     const googleUser = await this.verifyGoogleToken(idToken);
 
     const user = await this.usersService.findOrCreateFromGoogle(googleUser);
+
+    // Also enforced here, not just in `login`/`loginWithGoogle`: as
+    // documented above, this endpoint transparently signs an EXISTING
+    // identity in too, so without this check a disabled account could bypass
+    // the block simply by calling `/auth/google/register` instead of
+    // `/auth/google`. Harmless for a brand-new user, since `enabled`
+    // defaults to `true` at creation (see `User.enabled`).
+    this.assertEnabled(user);
 
     // Also covers the "re-login" case described above: when the identity
     // already existed, this records the new sign-in. For a brand-new user
@@ -152,6 +164,19 @@ export class AuthService {
       accessToken: this.signAdminJwt(admin),
       admin: { id: this.toId(admin), email: admin.email },
     };
+  }
+
+  /**
+   * Rejects sign-in for a disabled account (`User.enabled === false`) with
+   * `UnauthorizedException('USER_DISABLED')`. Used by `login`,
+   * `loginWithGoogle` and `registerWithGoogle` — deliberately NEVER by
+   * `loginBackoffice`, which authenticates against the separate `admins`
+   * collection and has no `enabled` concept.
+   */
+  private assertEnabled(user: UserDocument): void {
+    if (!user.enabled) {
+      throw new UnauthorizedException('USER_DISABLED');
+    }
   }
 
   private async verifyGoogleToken(idToken: string): Promise<{

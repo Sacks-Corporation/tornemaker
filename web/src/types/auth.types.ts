@@ -38,6 +38,7 @@ export type AuthErrorMessage =
   | 'USE_GOOGLE_LOGIN'
   | 'EMAIL_ALREADY_REGISTERED'
   | 'USER_NOT_REGISTERED'
+  | 'USER_DISABLED'
   | string
 
 export interface AuthErrorResponse {

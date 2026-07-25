@@ -51,6 +51,7 @@ const auth = {
     emailAlreadyRegistered: 'Ese correo ya está registrado',
     userNotRegistered: 'No existe una cuenta con este Google. Registrate primero.',
     userNotRegisteredCta: 'Crear cuenta con Google',
+    userDisabled: 'Su usuario se encuentra bloqueado',
     generic: 'Ocurrió un error inesperado. Intentá de nuevo.',
   },
   session: {

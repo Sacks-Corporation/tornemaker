@@ -12,6 +12,7 @@ function fakeUser(overrides: Partial<UserDocument> = {}): UserDocument {
     email: 'ada@example.com',
     provider: 'local',
     state: UserState.ACTIVE,
+    enabled: true,
     lastSignedIn: new Date('2026-07-20T00:00:00.000Z'),
     updatedAt: new Date('2026-07-21T00:00:00.000Z'),
     // Even if a caller forgets to exclude it in the query projection, the
@@ -33,6 +34,7 @@ describe('toUserListItem', () => {
     expect(item.provider).toBe('local');
     expect(item.lastSignedIn).toEqual(new Date('2026-07-20T00:00:00.000Z'));
     expect(item.updatedAt).toEqual(new Date('2026-07-21T00:00:00.000Z'));
+    expect(item.enabled).toBe(true);
   });
 
   it('never includes password (or any field beyond UserListItem) even if present on the document', () => {
@@ -41,6 +43,7 @@ describe('toUserListItem', () => {
     expect(Object.keys(item).sort()).toEqual(
       [
         'email',
+        'enabled',
         'firstName',
         'id',
         'lastName',
@@ -66,5 +69,10 @@ describe('toUserListItem', () => {
       lastSignedIn: new Date(), // recent, but BLOCKED still wins
     });
     expect(toUserListItem(blocked).state).toBe(UserState.BLOCKED);
+  });
+
+  it('maps a disabled user (enabled: false) through unchanged', () => {
+    const disabled = fakeUser({ enabled: false });
+    expect(toUserListItem(disabled).enabled).toBe(false);
   });
 });

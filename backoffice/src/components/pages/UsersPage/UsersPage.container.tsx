@@ -1,11 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import UsersPage, { UserStateBadge } from './UsersPage'
+import UsersPage, { DisableUserIcon, EnableUserIcon, UserStateBadge } from './UsersPage'
+import EnableOrDisableUserModal from './EnableOrDisableUserModal'
 import DataTable from '../../common/DataTable'
 import { useGetUsers } from '../../../hooks/users/useGetUsers'
 import { useAutoPageSize } from '../../../hooks/common/useAutoPageSize'
 import { formatDateTime } from '../../../utils/date.utils'
 import type {
+  DataTableAction,
   DataTableColumn,
   DataTableDataResult,
   SortDirection,
@@ -23,6 +25,10 @@ function UsersPageContainer() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const pageSize = useAutoPageSize({ containerRef: tableContainerRef })
+
+  // Usuario seleccionado para habilitar/deshabilitar (abre el modal de
+  // confirmación); `null` cuando no hay ninguno.
+  const [userToToggle, setUserToToggle] = useState<UserListItem | null>(null)
 
   const handleSortChange = (field: string, direction: SortDirection) => {
     setSortField(field)
@@ -99,6 +105,23 @@ function UsersPageContainer() {
     [t],
   )
 
+  // Única acción por fila (ícono + comportamiento) condicional a `enabled`:
+  // "Habilitar" cuando está deshabilitado, "Deshabilitar" cuando está
+  // habilitado. Abre `EnableOrDisableUserModal`, que resuelve el texto de
+  // confirmación y el endpoint correspondiente.
+  const actionColumns = useMemo<DataTableAction<UserListItem>[]>(
+    () => [
+      {
+        id: 'toggle-enabled',
+        label: (row) => t(row.enabled ? 'users.actions.disable' : 'users.actions.enable'),
+        icon: (row) => (row.enabled ? <DisableUserIcon /> : <EnableUserIcon />),
+        variant: (row) => (row.enabled ? 'danger' : 'default'),
+        onClick: (row) => setUserToToggle(row),
+      },
+    ],
+    [t],
+  )
+
   return (
     <UsersPage
       title={t('users.title')}
@@ -108,6 +131,7 @@ function UsersPageContainer() {
         <DataTable
           useData={useUsersTableData}
           columns={columns}
+          actionColumns={actionColumns}
           pageSize={pageSize}
           page={page}
           onPageChange={setPage}
@@ -116,6 +140,11 @@ function UsersPageContainer() {
           onSortChange={handleSortChange}
           getRowId={(row) => row.id}
         />
+      }
+      modal={
+        userToToggle && (
+          <EnableOrDisableUserModal user={userToToggle} onClose={() => setUserToToggle(null)} />
+        )
       }
     />
   )

@@ -19,6 +19,7 @@ export interface UserListItem {
   lastSignedIn: Date;
   state: UserState;
   provider: 'local' | 'google';
+  enabled: boolean;
 }
 
 /**
@@ -39,5 +40,6 @@ export function toUserListItem(user: UserDocument): UserListItem {
     lastSignedIn: user.lastSignedIn,
     state: computeEffectiveUserState(user.state, user.lastSignedIn),
     provider: user.provider,
+    enabled: user.enabled,
   };
 }
