@@ -338,7 +338,11 @@ export class MatchProgressionService {
     }
 
     // Not enough qualifiers yet (and nobody in the play-in): pair up a new round.
-    const nextMatches = pairNextSwissRound(stage.participants);
+    const nextMatches = pairNextSwissRound(stage.participants, {
+      winsToQualify: stage.winsToQualify,
+      lossesToEliminate: stage.lossesToEliminate,
+      targetQualifiers: stage.targetQualifiers,
+    });
     if (nextMatches && nextMatches.length > 0) {
       const nextRoundNumber =
         (stage.rounds[stage.rounds.length - 1]?.roundNumber ?? 0) + 1;

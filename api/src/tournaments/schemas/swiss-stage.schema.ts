@@ -34,11 +34,15 @@ import { Match, MatchSchema } from './common/match.schema';
  *     (`participant.record` history is reconstructible from match log, but
  *     see `SwissParticipant.resultsByRound` for a direct per-round view).
  *   - Rematch avoidance: `SwissParticipant.opponentTeamIds` accumulates
- *     every opponent a team has already faced; the pairing algorithm (to be
- *     implemented later, outside this schema) MUST exclude any candidate
- *     pair already present in either side's `opponentTeamIds` before
- *     falling back to a cross-score-group pairing if a same-group pairing
- *     would force a repeat that cannot otherwise be avoided.
+ *     every opponent a team has already faced. The pairing algorithm
+ *     (`progression/swiss-pairing.util.ts#pairNextSwissRound`) excludes any
+ *     pair already present in either side's `opponentTeamIds`; when a score
+ *     group cannot be arranged without a repeat it falls back to pairing
+ *     with the ADJACENT score group, and only accepts the unavoidable
+ *     minimum of rematches if that fails too. Among equally good pairings
+ *     it prefers the one least likely to force a rematch in the following
+ *     round, and every round is drawn at random (never in the initial draw
+ *     order).
  *
  * Variable qualifier count + play-in: the number of teams that reach 3 wins
  * is not fixed in advance (e.g. 5 teams can reach 3W before the bracket's
